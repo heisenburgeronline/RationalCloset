@@ -39,6 +39,7 @@ struct RandomOutfitView: View {
     @Environment(\.dismiss) var dismiss
     
     @State private var maxBudget: Double = 1000
+    @State private var budgetText: String = "1000"
     @State private var currentOutfit: GeneratedOutfit?
     @State private var isGenerating = false
     @State private var generationFailed = false
@@ -71,7 +72,7 @@ struct RandomOutfitView: View {
                             .padding(.top)
                         }
                         
-                        // Budget Slider
+                        // Budget Input
                         VStack(spacing: 12) {
                             HStack {
                                 Image(systemName: "dollarsign.circle.fill")
@@ -79,23 +80,53 @@ struct RandomOutfitView: View {
                                 Text("预算上限")
                                     .font(.system(size: 16, weight: .semibold))
                                 Spacer()
-                                Text("¥\(Int(maxBudget))")
-                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                            }
+                            
+                            HStack(spacing: 12) {
+                                Text("¥")
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.indigo)
+                                
+                                TextField("输入预算", text: $budgetText)
+                                    .keyboardType(.numberPad)
+                                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                                    .foregroundColor(.indigo)
+                                    .multilineTextAlignment(.leading)
+                                    .onChange(of: budgetText) { _, newValue in
+                                        // Update maxBudget from text
+                                        if let value = Double(newValue), value > 0 {
+                                            maxBudget = value
+                                        }
+                                    }
+                                
+                                Button {
+                                    generateOutfit()
+                                } label: {
+                                    Text("生成")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [.indigo, .purple],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .cornerRadius(10)
+                                }
+                                .disabled(isGenerating || budgetText.isEmpty || Double(budgetText) == nil)
                             }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(.tertiarySystemGroupedBackground))
+                            )
                             
-                            Slider(value: $maxBudget, in: 100...5000, step: 100)
-                                .tint(.indigo)
-                            
-                            HStack {
-                                Text("¥100")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Text("¥5000")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            Text("支持输入任意金额，不限上限")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                         .padding(20)
                         .background(
@@ -159,7 +190,7 @@ struct RandomOutfitView: View {
                                         Image(systemName: currentOutfit == nil ? "wand.and.stars" : "arrow.triangle.2.circlepath")
                                             .font(.system(size: 18, weight: .semibold))
                                     }
-                                    Text(currentOutfit == nil ? "生成穿搭" : "换一套")
+                                    Text(currentOutfit == nil ? "随机换一套" : "再换一套")
                                         .font(.system(size: 18, weight: .bold))
                                 }
                                 .foregroundColor(.white)

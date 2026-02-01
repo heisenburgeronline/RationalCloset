@@ -355,7 +355,8 @@ struct AddItemView: View {
                 }
             }
             
-            if isClothingCategory && categoryName != "下装" && categoryName != "裙装" {
+            // 其他服装类别（外套、内衣、运动服、连衣裙、套装等）的通用测量字段
+            if isClothingCategory && categoryName != "上装" && categoryName != "下装" && categoryName != "裙装" {
                 Section("详细平铺尺寸 (选填, cm)") {
                     HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
                     HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
@@ -437,7 +438,7 @@ struct AddItemView: View {
             shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, 
             chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, 
             sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, 
-            clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, 
+            clothingLengthString: clothingLengthText.isEmpty ? nil : clothingLengthText, 
             waistline: waistlineText.isEmpty ? nil : waistlineText,
             pantsLength: pantsLengthText.isEmpty ? nil : pantsLengthText,
             hips: hipsText.isEmpty ? nil : hipsText,
@@ -508,10 +509,13 @@ struct AddItemView: View {
                         
                         // Apply mask to create transparent background
                         let maskCIImage = CIImage(cvPixelBuffer: mask)
-                        let filter = CIFilter.blendWithMask()
-                        filter.inputImage = inputImage
-                        filter.backgroundImage = CIImage.empty()
-                        filter.maskImage = maskCIImage
+                        guard let filter = CIFilter(name: "CIBlendWithMask") else {
+                            continuation.resume(throwing: NSError(domain: "BackgroundRemoval", code: -5, userInfo: [NSLocalizedDescriptionKey: "Failed to create blend filter"]))
+                            return
+                        }
+                        filter.setValue(inputImage, forKey: kCIInputImageKey)
+                        filter.setValue(CIImage.empty(), forKey: kCIInputBackgroundImageKey)
+                        filter.setValue(maskCIImage, forKey: kCIInputMaskImageKey)
                         
                         guard let outputImage = filter.outputImage else {
                             continuation.resume(throwing: NSError(domain: "BackgroundRemoval", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to apply mask"]))
@@ -679,7 +683,7 @@ struct CPWGoalProgressView: View {
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.yellow.opacity(0.05))
+                        .fill(Color(red: 1.0, green: 1.0, blue: 0.0, opacity: 0.05))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)

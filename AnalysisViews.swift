@@ -47,16 +47,49 @@ struct RationalityAnalysisBlock: View {
         return items.count
     }
     
-    // UI Helpers
-    var savingsLabel: String { moneySaved >= 0 ? "理性省下" : "超出预算" }
-    var savingsColor: Color { moneySaved >= 0 ? .green : .red }
-    var funConversionText: String { SavingsConversion.getFunText(for: moneySaved) }
-    var funIcon: String { SavingsConversion.getIcon(for: moneySaved) }
-    var rationalityIcon: String { moneySaved > 0 ? "hand.thumbsup.fill" : (moneySaved < 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") }
-    var rationalityColor: Color { moneySaved > 0 ? .green : (moneySaved < 0 ? .red : .blue) }
+    // UI Helpers - New Logic
+    var difference: Double { budget - netSpending }
+    
+    var savingsLabel: String {
+        if netSpending < 0 { return "净赚" }
+        else if difference >= 0 { return "成功省下" }
+        else { return "超出预算" }
+    }
+    
+    var savingsColor: Color {
+        if netSpending < 0 { return Color(red: 1.0, green: 0.84, blue: 0.0) } // Gold
+        else if difference >= 0 { return .green }
+        else { return .red }
+    }
+    
+    var savingsDisplayAmount: Double {
+        if netSpending < 0 { return abs(netSpending) }
+        else if difference >= 0 { return difference }
+        else { return abs(difference) }
+    }
+    
+    var savingsIconName: String {
+        if netSpending < 0 { return "trophy.fill" }
+        else if difference >= 0 { return "leaf.fill" }
+        else { return "exclamationmark.triangle.fill" }
+    }
+    
+    var savingsTitle: String {
+        if netSpending < 0 { return "回血大师 🏆" }
+        else if difference >= 0 { return "省钱小能手 ✅" }
+        else { return "再买剁手 ⚠️" }
+    }
+    
+    var funConversionText: String { 
+        if netSpending < 0 { return SavingsConversion.getFunText(for: abs(netSpending)) }
+        else { return SavingsConversion.getFunText(for: savingsDisplayAmount) }
+    }
+    var funIcon: String { SavingsConversion.getIcon(for: savingsDisplayAmount) }
+    var rationalityIcon: String { netSpending < 0 ? "hand.thumbsup.fill" : (difference < 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") }
+    var rationalityColor: Color { netSpending < 0 ? .yellow : (difference < 0 ? .red : .green) }
     var rationalityMessage: String {
-        if moneySaved < 0 { return "消费已超出预算，建议控制支出或卖出闲置物品！" }
-        else if moneySaved > budget * 0.5 { return "太棒了！你省下了超过一半的预算，继续保持！" }
+        if difference < 0 { return "消费已超出预算，建议控制支出或卖出闲置物品！" }
+        else if difference > budget * 0.5 { return "太棒了！你省下了超过一半的预算，继续保持！" }
         else if totalSpent == 0 && itemCount == 0 { return "暂无消费记录，开始记录你的理性衣橱吧！" }
         else { return "消费习惯良好，继续保持记录的好习惯！" }
     }
@@ -141,11 +174,17 @@ struct RationalityAnalysisBlock: View {
                     Text(String(format: "¥%.2f", totalSpent)).font(.system(size: 28, weight: .bold, design: .rounded)).foregroundColor(isOverBudget ? .red : .primary)
                 }.padding(16).background(RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.08)))
                 
-                // 欲望天梯
+                // 欲望天梯 - Updated Display
                 VStack(spacing: 10) {
-                    HStack(spacing: 6) { Image(systemName: moneySaved >= 0 ? "leaf.fill" : "exclamationmark.triangle.fill").font(.system(size: 14)).foregroundColor(savingsColor); Text(savingsLabel).font(.system(size: 13)).foregroundColor(.secondary) }
-                    Text(formatCurrency(moneySaved)).font(.system(size: 26, weight: .bold, design: .rounded)).foregroundColor(savingsColor)
-                    HStack(spacing: 6) { Image(systemName: funIcon).font(.system(size: 14)); Text(funConversionText).font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.8) }.foregroundColor(moneySaved >= 0 ? .green.opacity(0.9) : .red.opacity(0.9)).padding(.horizontal, 14).padding(.vertical, 6).background(Capsule().fill(savingsColor.opacity(0.12)))
+                    HStack(spacing: 6) { 
+                        Image(systemName: savingsIconName).font(.system(size: 14)).foregroundColor(savingsColor)
+                        Text(savingsLabel).font(.system(size: 13)).foregroundColor(.secondary)
+                    }
+                    Text("¥\(String(format: "%.0f", savingsDisplayAmount))").font(.system(size: 26, weight: .bold, design: .rounded)).foregroundColor(savingsColor)
+                    HStack(spacing: 6) { 
+                        Image(systemName: funIcon).font(.system(size: 14))
+                        Text(funConversionText).font(.system(size: 12)).lineLimit(1).minimumScaleFactor(0.8) 
+                    }.foregroundColor(savingsColor.opacity(0.9)).padding(.horizontal, 14).padding(.vertical, 6).background(Capsule().fill(savingsColor.opacity(0.12)))
                 }.frame(maxWidth: .infinity).padding(.vertical, 16).background(RoundedRectangle(cornerRadius: 12).fill(savingsColor.opacity(0.08)))
                 
                 // 收支明细
@@ -213,49 +252,58 @@ struct ShareableReportView: View {
     var period: StatisticsPeriod
     @Environment(\.horizontalSizeClass) var sizeClass
     
-    // Fixed Logic for Display
+    // Fixed Logic for Display - V13.0 Logic
+    var budget: Double { totalSpent + moneySaved } // Reverse engineer budget from provided data
+    var difference: Double { budget - netSpending }
+    
     var savingsDisplayText: String {
-        if totalSpent < 0 {
-            // Scenario C: Profit (Sold more than bought)
-            return "净赚/回血"
-        } else if moneySaved < 0 {
-            // Scenario A: Over Budget
-            return "超出预算"
-        } else {
+        if netSpending < 0 {
+            // Scenario A: Profit (Sold more than bought)
+            return "净赚"
+        } else if difference >= 0 {
             // Scenario B: Under Budget
-            return "完美省下"
+            return "成功省下"
+        } else {
+            // Scenario C: Over Budget
+            return "超出预算"
         }
     }
     
     var savingsIcon: String {
-        if totalSpent < 0 {
+        if netSpending < 0 {
             return "trophy.fill"
-        } else if moneySaved < 0 {
-            return "exclamationmark.triangle.fill"
-        } else {
+        } else if difference >= 0 {
             return "checkmark.circle.fill"
+        } else {
+            return "exclamationmark.triangle.fill"
         }
     }
     
     var savingsDisplayAmount: String {
-        if totalSpent < 0 {
-            return "¥\(String(format: "%.0f", abs(totalSpent)))"
+        if netSpending < 0 {
+            return "¥\(String(format: "%.0f", abs(netSpending)))"
+        } else if difference >= 0 {
+            return "¥\(String(format: "%.0f", difference))"
         } else {
-            return "¥\(String(format: "%.0f", abs(moneySaved)))"
+            return "¥\(String(format: "%.0f", abs(difference)))"
         }
     }
     
     var savingsColor: Color {
-        if totalSpent < 0 {
-            return .yellow
-        } else if moneySaved < 0 {
-            return .red
-        } else {
+        if netSpending < 0 {
+            return Color(red: 1.0, green: 0.84, blue: 0.0) // Gold
+        } else if difference >= 0 {
             return .green
+        } else {
+            return .red
         }
     }
     
-    var funText: String { SavingsConversion.getFunText(for: moneySaved) }
+    var funText: String { 
+        if netSpending < 0 { return SavingsConversion.getFunText(for: abs(netSpending)) }
+        else if difference >= 0 { return SavingsConversion.getFunText(for: difference) }
+        else { return SavingsConversion.getFunText(for: abs(difference)) }
+    }
     func formatCurrency(_ amount: Double) -> String { amount < 0 ? "-¥\(String(format: "%.0f", abs(amount)))" : "¥\(String(format: "%.0f", amount))" }
     
     var body: some View {
@@ -286,12 +334,12 @@ struct ShareableReportView: View {
         .padding(sizeClass == .compact ? 25 : 35).frame(maxWidth: 400).background(LinearGradient(colors: getGradientColors(), startPoint: .topLeading, endPoint: .bottomTrailing)).cornerRadius(24).shadow(color: savingsColor.opacity(0.4), radius: 20, x: 0, y: 10)
     }
     
-    // Dynamic gradient based on savings status
+    // Dynamic gradient based on savings status - V13.0 Logic
     private func getGradientColors() -> [Color] {
-        if totalSpent < 0 {
+        if netSpending < 0 {
             // Profit: Gold/Yellow gradient
             return [Color(red: 0.9, green: 0.7, blue: 0.2), Color(red: 0.8, green: 0.5, blue: 0.3), Color(red: 0.7, green: 0.4, blue: 0.5)]
-        } else if moneySaved < 0 {
+        } else if difference < 0 {
             // Over budget: Red/Pink gradient
             return [Color(red: 0.8, green: 0.3, blue: 0.3), Color(red: 0.7, green: 0.3, blue: 0.5), Color(red: 0.6, green: 0.3, blue: 0.6)]
         } else {

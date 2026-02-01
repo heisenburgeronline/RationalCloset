@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import Combine
 
 // MARK: - Monthly Title Model
 struct MonthlyTitle {
@@ -74,12 +75,19 @@ class WardrobeStore: ObservableObject {
     
     // MARK: - 查询与筛选
     func getColdPalaceItems() -> [ClothingItem] {
-        return items.filter { $0.isCold(threshold: coldThresholdDays) }
-            .sorted { $0.purchaseDate < $1.purchaseDate }
+        // Exclude underwear/loungewear and accessories from cold palace tracking
+        let excludedCategories = ["内衣居家", "配饰", "场景功能"]
+        return items.filter { item in
+            !excludedCategories.contains(item.category) && item.isCold(threshold: coldThresholdDays)
+        }
+        .sorted { $0.purchaseDate < $1.purchaseDate }
     }
     
     func getColdItemsCount() -> Int {
-        return items.filter { $0.isCold(threshold: coldThresholdDays) }.count
+        let excludedCategories = ["内衣居家", "配饰", "场景功能"]
+        return items.filter { item in
+            !excludedCategories.contains(item.category) && item.isCold(threshold: coldThresholdDays)
+        }.count
     }
     
     func getItemsForCategory(categoryName: String) -> [ClothingItem] {
