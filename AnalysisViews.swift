@@ -212,7 +212,49 @@ struct ShareableReportView: View {
     var itemCount: Int
     var period: StatisticsPeriod
     @Environment(\.horizontalSizeClass) var sizeClass
-    var savingsLabel: String { moneySaved >= 0 ? "理性省下" : "超出预算" }
+    
+    // Fixed Logic for Display
+    var savingsDisplayText: String {
+        if totalSpent < 0 {
+            // Scenario C: Profit (Sold more than bought)
+            return "净赚/回血"
+        } else if moneySaved < 0 {
+            // Scenario A: Over Budget
+            return "超出预算"
+        } else {
+            // Scenario B: Under Budget
+            return "完美省下"
+        }
+    }
+    
+    var savingsIcon: String {
+        if totalSpent < 0 {
+            return "trophy.fill"
+        } else if moneySaved < 0 {
+            return "exclamationmark.triangle.fill"
+        } else {
+            return "checkmark.circle.fill"
+        }
+    }
+    
+    var savingsDisplayAmount: String {
+        if totalSpent < 0 {
+            return "¥\(String(format: "%.0f", abs(totalSpent)))"
+        } else {
+            return "¥\(String(format: "%.0f", abs(moneySaved)))"
+        }
+    }
+    
+    var savingsColor: Color {
+        if totalSpent < 0 {
+            return .yellow
+        } else if moneySaved < 0 {
+            return .red
+        } else {
+            return .green
+        }
+    }
+    
     var funText: String { SavingsConversion.getFunText(for: moneySaved) }
     func formatCurrency(_ amount: Double) -> String { amount < 0 ? "-¥\(String(format: "%.0f", abs(amount)))" : "¥\(String(format: "%.0f", amount))" }
     
@@ -222,8 +264,11 @@ struct ShareableReportView: View {
             Text(period.rawValue).font(.system(size: 16, weight: .medium)).foregroundColor(.white.opacity(0.8)).padding(.horizontal, 16).padding(.vertical, 6).background(Color.white.opacity(0.2)).cornerRadius(20)
             VStack(spacing: 20) {
                 VStack(spacing: 8) {
-                    HStack(spacing: 6) { Image(systemName: moneySaved >= 0 ? "leaf.fill" : "exclamationmark.triangle.fill").font(.system(size: 20)); Text(savingsLabel).font(.system(size: 16, weight: .medium)) }.foregroundColor(.white.opacity(0.9))
-                    Text(formatCurrency(moneySaved)).font(.system(size: 48, weight: .bold, design: .rounded)).foregroundColor(.white)
+                    HStack(spacing: 6) { 
+                        Image(systemName: savingsIcon).font(.system(size: 20))
+                        Text(savingsDisplayText).font(.system(size: 16, weight: .medium))
+                    }.foregroundColor(.white.opacity(0.9))
+                    Text(savingsDisplayAmount).font(.system(size: 48, weight: .bold, design: .rounded)).foregroundColor(.white)
                     Text(funText).font(.system(size: 13)).foregroundColor(.white.opacity(0.85)).padding(.horizontal, 12).padding(.vertical, 4).background(Color.white.opacity(0.15)).cornerRadius(12)
                 }
                 HStack(spacing: 20) {
@@ -238,7 +283,21 @@ struct ShareableReportView: View {
             Spacer().frame(height: 10)
             VStack(spacing: 12) { Text("理性消费，精致生活 ✨").font(.system(size: 14, weight: .medium)).foregroundColor(.white.opacity(0.9)); HStack(spacing: 6) { Image(systemName: "hanger").font(.system(size: 12)); Text("Powered by 理性衣橱").font(.system(size: 11, weight: .medium)) }.foregroundColor(.white.opacity(0.5)) }
         }
-        .padding(sizeClass == .compact ? 25 : 35).frame(maxWidth: 400).background(LinearGradient(colors: moneySaved >= 0 ? [Color(red: 0.2, green: 0.6, blue: 0.4), Color(red: 0.3, green: 0.5, blue: 0.7), Color(red: 0.4, green: 0.4, blue: 0.8)] : [Color(red: 0.8, green: 0.3, blue: 0.3), Color(red: 0.7, green: 0.3, blue: 0.5), Color(red: 0.6, green: 0.3, blue: 0.6)], startPoint: .topLeading, endPoint: .bottomTrailing)).cornerRadius(24).shadow(color: (moneySaved >= 0 ? Color.green : Color.red).opacity(0.4), radius: 20, x: 0, y: 10)
+        .padding(sizeClass == .compact ? 25 : 35).frame(maxWidth: 400).background(LinearGradient(colors: getGradientColors(), startPoint: .topLeading, endPoint: .bottomTrailing)).cornerRadius(24).shadow(color: savingsColor.opacity(0.4), radius: 20, x: 0, y: 10)
+    }
+    
+    // Dynamic gradient based on savings status
+    private func getGradientColors() -> [Color] {
+        if totalSpent < 0 {
+            // Profit: Gold/Yellow gradient
+            return [Color(red: 0.9, green: 0.7, blue: 0.2), Color(red: 0.8, green: 0.5, blue: 0.3), Color(red: 0.7, green: 0.4, blue: 0.5)]
+        } else if moneySaved < 0 {
+            // Over budget: Red/Pink gradient
+            return [Color(red: 0.8, green: 0.3, blue: 0.3), Color(red: 0.7, green: 0.3, blue: 0.5), Color(red: 0.6, green: 0.3, blue: 0.6)]
+        } else {
+            // Under budget: Green/Blue gradient
+            return [Color(red: 0.2, green: 0.6, blue: 0.4), Color(red: 0.3, green: 0.5, blue: 0.7), Color(red: 0.4, green: 0.4, blue: 0.8)]
+        }
     }
 }
 

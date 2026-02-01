@@ -43,6 +43,9 @@ struct RandomOutfitView: View {
     @State private var isGenerating = false
     @State private var generationFailed = false
     @State private var showSaveAlert = false
+    @State private var showInsufficientItemsAlert = false
+    @State private var renderedOutfitImage: UIImage?
+    @State private var isSavingToPhotos = false
     
     var body: some View {
         NavigationStack {
@@ -175,11 +178,16 @@ struct RandomOutfitView: View {
                             
                             if currentOutfit != nil && !currentOutfit!.isEmpty {
                                 Button {
-                                    showSaveAlert = true
+                                    saveOutfitToPhotos()
                                 } label: {
                                     HStack(spacing: 8) {
-                                        Image(systemName: "heart.fill")
-                                        Text("保存这套搭配")
+                                        if isSavingToPhotos {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .indigo))
+                                        } else {
+                                            Image(systemName: "photo.on.rectangle.angled")
+                                        }
+                                        Text(isSavingToPhotos ? "保存中..." : "保存到相册")
                                     }
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.indigo)
@@ -188,6 +196,7 @@ struct RandomOutfitView: View {
                                     .background(Color.indigo.opacity(0.1))
                                     .cornerRadius(12)
                                 }
+                                .disabled(isSavingToPhotos)
                             }
                         }
                         .padding(.horizontal)
@@ -207,13 +216,34 @@ struct RandomOutfitView: View {
             .alert("保存成功", isPresented: $showSaveAlert) {
                 Button("确定", role: .cancel) { }
             } message: {
-                Text("这套搭配已保存到你的心中 ❤️\n（完整保存功能即将上线）")
+                Text("穿搭灵感卡片已保存到相册 📸")
+            }
+            .alert("巧妇难为无米之炊", isPresented: $showInsufficientItemsAlert) {
+                Button("知道了", role: .cancel) { }
+            } message: {
+                Text("你的衣橱物品太少，无法生成完整搭配\n\n至少需要：\n• 1件上装或裙装\n• 1件鞋履\n\n建议先添加更多衣物再试试吧！")
             }
         }
     }
     
     // MARK: - Outfit Generation Logic
     private func generateOutfit() {
+        // Pre-flight check: Ensure minimum items exist
+        let activeItems = wardrobeStore.items.filter { $0.status == .active }
+        let tops = activeItems.filter { $0.category == "上装" || $0.category == "外套" }
+        let dresses = activeItems.filter { $0.category == "裙装" }
+        let shoes = activeItems.filter { $0.category == "鞋履" }
+        
+        // Need at least: (1 top OR 1 dress) AND 1 shoe
+        let hasMainPiece = !tops.isEmpty || !dresses.isEmpty
+        let hasShoes = !shoes.isEmpty
+        
+        if !hasMainPiece || !hasShoes {
+            showInsufficientItemsAlert = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
+        
         isGenerating = true
         generationFailed = false
         
@@ -240,8 +270,8 @@ struct RandomOutfitView: View {
         
         // Categorize items
         let tops = activeItems.filter { $0.category == "上装" || $0.category == "外套" }
-        let bottoms = activeItems.filter { $0.category == "下装" }
-        let dresses = activeItems.filter { $0.category == "裙装" }
+        let bottoms = activeItems.filter { $0.category == "下装" || $0.category == "裙装" } // Skirts are bottoms!
+        let dresses = activeItems.filter { $0.category == "裙装" } // Full dresses/suits
         let shoes = activeItems.filter { $0.category == "鞋履" }
         let bags = activeItems.filter { $0.category == "包包" }
         let accessories = activeItems.filter { $0.category == "配饰" }
@@ -250,17 +280,21 @@ struct RandomOutfitView: View {
         for _ in 0..<maxAttempts {
             var outfit = GeneratedOutfit()
             
-            // Decide: Top+Bottom OR Dress
+            // Step 1: Randomly choose Structure Type
+            // Type A: Top + Bottom OR Type B: Dress (standalone piece)
             let useDress = !dresses.isEmpty && Bool.random()
             
             if useDress {
+                // Type B: Dress/Suit - NO Top or Bottom
                 outfit.topOrDress = dresses.randomElement()
+                outfit.bottom = nil // Explicitly no bottom with dress
             } else {
+                // Type A: Separates - Top + Bottom
                 outfit.topOrDress = tops.randomElement()
                 outfit.bottom = bottoms.randomElement()
             }
             
-            // Essential items
+            // Essential items (always included regardless of type)
             outfit.shoes = shoes.randomElement()
             outfit.bag = bags.randomElement()
             
@@ -276,6 +310,33 @@ struct RandomOutfitView: View {
         
         // If we couldn't generate within budget, return nil
         return nil
+    }
+    
+    // MARK: - Save to Photos
+    @MainActor
+    private func saveOutfitToPhotos() {
+        guard let outfit = currentOutfit, !outfit.isEmpty else { return }
+        
+        isSavingToPhotos = true
+        
+        // Render the outfit moodboard as an image
+        let renderer = ImageRenderer(content: OutfitMoodboardView(outfit: outfit))
+        renderer.scale = 3.0 // High resolution
+        
+        if let renderedImage = renderer.uiImage {
+            // Save to photo library
+            UIImageWriteToSavedPhotosAlbum(renderedImage, nil, nil, nil)
+            
+            // Show success feedback
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isSavingToPhotos = false
+                showSaveAlert = true
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        } else {
+            isSavingToPhotos = false
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        }
     }
 }
 

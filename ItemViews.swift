@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import Vision
 
 struct ItemDetailView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
@@ -196,6 +197,8 @@ struct AddItemView: View {
     @State private var pantsLengthText = ""; @State private var hipsText = ""; @State private var legOpeningText = ""
     @State private var centerBackLengthText = ""; @State private var frontLengthText = ""; @State private var hemText = ""
     @State private var bagTypeText = ""; @State private var brandText = ""
+    @State private var isProcessingBackground = false
+    @State private var selectedImageIndexForBG: Int?
     
     var isClothingCategory: Bool {
         let clothingCategories = ["上装", "下装", "外套", "内衣", "运动服", "连衣裙", "套装"]
@@ -221,24 +224,53 @@ struct AddItemView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(Array(imagesData.enumerated()), id: \.offset) { index, data in
-                                ZStack(alignment: .topTrailing) {
-                                    if let uiImage = UIImage(data: data) {
-                                        Image(uiImage: uiImage)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 110, height: 110)
-                                            .cornerRadius(12)
-                                            .clipped()
+                                VStack(spacing: 8) {
+                                    ZStack(alignment: .topTrailing) {
+                                        if let uiImage = UIImage(data: data) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 110, height: 110)
+                                                .cornerRadius(12)
+                                                .clipped()
+                                        }
+                                        Button {
+                                            imagesData.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 22))
+                                                .foregroundColor(.white)
+                                                .background(Circle().fill(Color.red))
+                                        }
+                                        .padding(4)
                                     }
+                                    
+                                    // Background Removal Button
                                     Button {
-                                        imagesData.remove(at: index)
+                                        selectedImageIndexForBG = index
+                                        removeBackground(at: index)
                                     } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 22))
-                                            .foregroundColor(.white)
-                                            .background(Circle().fill(Color.red))
+                                        HStack(spacing: 4) {
+                                            if isProcessingBackground && selectedImageIndexForBG == index {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle())
+                                                    .scaleEffect(0.7)
+                                            } else {
+                                                Text("✂️")
+                                                    .font(.system(size: 12))
+                                            }
+                                            Text("抠图")
+                                                .font(.system(size: 10, weight: .semibold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            Capsule()
+                                                .fill(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing))
+                                        )
                                     }
-                                    .padding(4)
+                                    .disabled(isProcessingBackground)
                                 }
                             }
                             
@@ -389,6 +421,91 @@ struct AddItemView: View {
         )
         store.addNewItem(newItem: newItem)
         dismiss() 
+    }
+    
+    // MARK: - AI Background Removal
+    private func removeBackground(at index: Int) {
+        guard index < imagesData.count,
+              let inputImage = UIImage(data: imagesData[index]) else { return }
+        
+        isProcessingBackground = true
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        
+        Task {
+            do {
+                let processedImage = try await processBackgroundRemoval(image: inputImage)
+                
+                await MainActor.run {
+                    if let pngData = processedImage.pngData() {
+                        imagesData[index] = pngData
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                    isProcessingBackground = false
+                    selectedImageIndexForBG = nil
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessingBackground = false
+                    selectedImageIndexForBG = nil
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+            }
+        }
+    }
+    
+    private func processBackgroundRemoval(image: UIImage) async throws -> UIImage {
+        guard let inputImage = CIImage(image: image) else {
+            throw NSError(domain: "BackgroundRemoval", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create CIImage"])
+        }
+        
+        // Create Vision request for subject masking (iOS 17+)
+        if #available(iOS 17.0, *) {
+            let request = VNGenerateForegroundInstanceMaskRequest()
+            
+            return try await withCheckedThrowingContinuation { continuation in
+                let handler = VNImageRequestHandler(ciImage: inputImage, options: [:])
+                
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        try handler.perform([request])
+                        
+                        guard let result = request.results?.first else {
+                            continuation.resume(throwing: NSError(domain: "BackgroundRemoval", code: -2, userInfo: [NSLocalizedDescriptionKey: "No mask generated"]))
+                            return
+                        }
+                        
+                        // Generate mask
+                        let mask = try result.generateScaledMaskForImage(forInstances: result.allInstances, from: handler)
+                        
+                        // Apply mask to create transparent background
+                        let maskCIImage = CIImage(cvPixelBuffer: mask)
+                        let filter = CIFilter.blendWithMask()
+                        filter.inputImage = inputImage
+                        filter.backgroundImage = CIImage.empty()
+                        filter.maskImage = maskCIImage
+                        
+                        guard let outputImage = filter.outputImage else {
+                            continuation.resume(throwing: NSError(domain: "BackgroundRemoval", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to apply mask"]))
+                            return
+                        }
+                        
+                        let context = CIContext()
+                        guard let cgImage = context.createCGImage(outputImage, from: outputImage.extent) else {
+                            continuation.resume(throwing: NSError(domain: "BackgroundRemoval", code: -4, userInfo: [NSLocalizedDescriptionKey: "Failed to create CGImage"]))
+                            return
+                        }
+                        
+                        let resultImage = UIImage(cgImage: cgImage)
+                        continuation.resume(returning: resultImage)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } else {
+            // Fallback for iOS 16 - return original image
+            return image
+        }
     }
 }
 

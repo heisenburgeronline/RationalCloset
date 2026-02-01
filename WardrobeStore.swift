@@ -252,6 +252,36 @@ class WardrobeStore: ObservableObject {
         }
     }
     
+    // MARK: - Calendar / OOTD Helpers
+    func getOutfit(for date: Date) -> [ClothingItem] {
+        let calendar = Calendar.current
+        
+        return items.filter { item in
+            item.wearDates.contains { wearDate in
+                calendar.isDate(wearDate, inSameDayAs: date)
+            }
+        }.sorted { $0.category < $1.category }
+    }
+    
+    func getDatesWithOutfits(in month: Date) -> Set<DateComponents> {
+        let calendar = Calendar.current
+        let monthComponents = calendar.dateComponents([.year, .month], from: month)
+        
+        var datesWithItems: Set<DateComponents> = []
+        
+        for item in items {
+            for wearDate in item.wearDates {
+                let wearComponents = calendar.dateComponents([.year, .month], from: wearDate)
+                if wearComponents.year == monthComponents.year && wearComponents.month == monthComponents.month {
+                    let dayComponents = calendar.dateComponents([.year, .month, .day], from: wearDate)
+                    datesWithItems.insert(dayComponents)
+                }
+            }
+        }
+        
+        return datesWithItems
+    }
+    
     // MARK: - Gamification: Monthly Title
     func calculateMonthlyTitle() -> MonthlyTitle {
         let calendar = Calendar.current
