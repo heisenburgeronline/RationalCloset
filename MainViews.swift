@@ -25,6 +25,10 @@ struct MainDashboardView: View {
                         HStack { Image(systemName: "tshirt.fill").font(.title2).foregroundColor(.white); VStack(alignment: .leading, spacing: 4) { Text("我的全部衣物").font(.headline).foregroundColor(.white); Text("\(wardrobeStore.items.count) 件 · \(wardrobeStore.getActiveItems().count) 件在用").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
                     }.padding(.horizontal)
                     
+                    NavigationLink(destination: RandomOutfitView().environmentObject(wardrobeStore)) {
+                        HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("今日穿搭随机器").font(.headline).foregroundColor(.white); Text("让理性小猫帮你搭配").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
+                    }.padding(.horizontal)
+                    
                     let coldPalaceItems = wardrobeStore.getColdPalaceItems()
                     if !coldPalaceItems.isEmpty {
                         NavigationLink(destination: ColdPalaceListView().environmentObject(wardrobeStore)) {
