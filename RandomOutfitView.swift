@@ -208,6 +208,31 @@ struct RandomOutfitView: View {
                             .disabled(isGenerating)
                             
                             if currentOutfit != nil && !currentOutfit!.isEmpty {
+                                // Real Share Button using ShareLink
+                                if let image = renderedOutfitImage {
+                                    ShareLink(
+                                        item: Image(uiImage: image),
+                                        preview: SharePreview("我的不理性穿搭", image: Image(uiImage: image))
+                                    ) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "square.and.arrow.up")
+                                            Text("分享穿搭")
+                                        }
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 14)
+                                        .background(
+                                            LinearGradient(
+                                                colors: [.purple, .pink],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .cornerRadius(12)
+                                    }
+                                }
+                                
                                 Button {
                                     saveOutfitToPhotos()
                                 } label: {
@@ -291,6 +316,8 @@ struct RandomOutfitView: View {
                 
                 if !generationFailed {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    // Render image for sharing after generation
+                    renderOutfitImage()
                 }
             }
         }
@@ -341,6 +368,15 @@ struct RandomOutfitView: View {
         
         // If we couldn't generate within budget, return nil
         return nil
+    }
+    
+    // MARK: - Render Outfit Image for Sharing
+    @MainActor
+    private func renderOutfitImage() {
+        guard let outfit = currentOutfit, !outfit.isEmpty else { return }
+        let renderer = ImageRenderer(content: OutfitMoodboardView(outfit: outfit))
+        renderer.scale = 3.0
+        renderedOutfitImage = renderer.uiImage
     }
     
     // MARK: - Save to Photos

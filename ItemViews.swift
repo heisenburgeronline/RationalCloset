@@ -392,7 +392,18 @@ struct AddItemView: View {
             Section("备注（选填）") { TextEditor(text: $notesText).frame(minHeight: 80).overlay(alignment: .topLeading) { if notesText.isEmpty { Text("其他备注信息...").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
         }
         .navigationTitle("记录 \(categoryName)").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("保存") { saveItem() }.disabled(!isFormValid).bold() } }
+        .toolbar { 
+            ToolbarItem(placement: .navigationBarTrailing) { 
+                Button("保存") { saveItem() }.disabled(!isFormValid).bold() 
+            }
+            ToolbarItem(placement: .keyboard) {
+                Button("完成") {
+                    // Dismiss keyboard
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .font(.headline)
+            }
+        }
         .onChange(of: photoPickerItems) { _, newItems in loadPhotos(from: newItems) }
         .onAppear { currentWarningMessage = RationalityCatMessages.randomWarning() }
     }

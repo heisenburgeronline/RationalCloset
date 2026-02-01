@@ -463,7 +463,7 @@ struct SettingsView: View {
                         Slider(value: $coldThreshold, in: 7...180, step: 1)
                             .tint(.indigo)
                         
-                        Text("物品超过此天数未穿着，将被标记为"冷宫"（❄️）")
+                        Text("物品超过此天数未穿着，将被标记为❄️")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
