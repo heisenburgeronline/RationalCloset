@@ -29,10 +29,16 @@ struct SavingsConversion {
         else if amount >= 3000 { return "够买一张周杰伦演唱会内场票 🎤" }
         else if amount >= 2000 { return "够买一台 Nintendo Switch 2 🎮" }
         else if amount >= 1500 { return "够买一副 AirPods Pro 🎧" }
-        else if amount >= 800 { return "够买一张迪士尼门票+周边 🏰" }
+        else if amount >= 1200 { return "相当于省下了 240 杯奶茶 🧋" }
+        else if amount >= 1000 { return "够吃 10 顿海底捞了 🍲" }
+        else if amount >= 800 { return "省出了一张去迪士尼的门票 🏰" }
+        else if amount >= 600 { return "这笔钱够给猫主子买 120 罐罐头 🐱" }
         else if amount >= 500 { return "够买一双 Nike 运动鞋 👟" }
+        else if amount >= 400 { return "够报一个健身月卡了 💪" }
         else if amount >= 300 { return "够买一支大牌口红 💄" }
-        else if amount >= 100 { return "够吃一顿海底捞火锅 🍲" }
+        else if amount >= 200 { return "相当于省下了 40 杯奶茶 🧋" }
+        else if amount >= 150 { return "够买一个智能音箱 🔊" }
+        else if amount >= 100 { return "够吃一顿火锅 🍲" }
         else if amount >= 50 { return "够吃一顿麦当劳全家桶 🍔" }
         else if amount >= 20 { return "够喝一杯星巴克 ☕️" }
         else if amount >= 10 { return "够喝一杯霸王茶姬 🧋" }
@@ -66,7 +72,13 @@ struct RationalityCatMessages {
         "理性小猫：这件衣服很贵呢，是心动还是冲动？🐱",
         "理性小猫：高价物品警报！请三思而后行喵~ 🐱",
         "理性小猫：你的钱包正在瑟瑟发抖...🐱",
-        "理性小猫：问问自己：一年后还会穿吗？🐱"
+        "理性小猫：问问自己：一年后还会穿吗？🐱",
+        "买前想三秒，退款少烦恼。🐱",
+        "这就是你衣柜爆炸的原因。🐱",
+        "真的需要吗？还是只是想花钱？🐱",
+        "想想那件买来只穿过一次的外套... 🐱",
+        "理性小猫：它能穿够10次吗？算算CPW吧~ 🐱",
+        "理性小猫：衣柜里还有5件类似的呢... 🐱"
     ]
     
     static let scenarioWarning = "理性小猫：特殊场合衣服利用率很低，租一个会不会更香？🐱"

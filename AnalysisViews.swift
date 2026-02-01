@@ -17,6 +17,36 @@ struct RationalityAnalysisBlock: View {
     var allTimeRecovered: Double { wardrobeStore.calculateAllTimeRecovered() }
     var netSpending: Double { wardrobeStore.calculateNetSpending(forPeriod: analysisPeriod) }
     
+    // Monthly Title
+    var monthlyTitle: MonthlyTitle { wardrobeStore.calculateMonthlyTitle() }
+    
+    // Recycle count for current period
+    var recycleCount: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        let items = wardrobeStore.items.filter { item in
+            guard let soldDate = item.soldDate, item.status == .sold else { return false }
+            switch analysisPeriod {
+            case .week:
+                if let daysAgo = calendar.date(byAdding: .day, value: -7, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
+            case .month:
+                if let daysAgo = calendar.date(byAdding: .day, value: -30, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
+            case .year:
+                if let daysAgo = calendar.date(byAdding: .day, value: -365, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
+            }
+        }
+        return items.count
+    }
+    
     // UI Helpers
     var savingsLabel: String { moneySaved >= 0 ? "理性省下" : "超出预算" }
     var savingsColor: Color { moneySaved >= 0 ? .green : .red }
@@ -31,6 +61,17 @@ struct RationalityAnalysisBlock: View {
         else { return "消费习惯良好，继续保持记录的好习惯！" }
     }
     func formatCurrency(_ amount: Double) -> String { amount < 0 ? "-¥\(String(format: "%.0f", abs(amount)))" : "¥\(String(format: "%.0f", amount))" }
+    
+    // Net Spending Display Logic
+    var netSpendingLabel: String { netSpending < 0 ? "反向搞钱" : "净支出" }
+    var netSpendingColor: Color { netSpending < 0 ? .orange : .purple }
+    var netSpendingAmount: String { 
+        if netSpending < 0 {
+            return "¥\(String(format: "%.0f", abs(netSpending)))"
+        } else {
+            return "¥\(String(format: "%.0f", netSpending))"
+        }
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -51,6 +92,34 @@ struct RationalityAnalysisBlock: View {
             Divider().padding(.horizontal, 20)
             
             VStack(spacing: 20) {
+                // 🏆 Monthly Title Card (Gamification)
+                VStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Image(systemName: monthlyTitle.icon)
+                            .font(.system(size: 32))
+                            .foregroundColor(monthlyTitle.color)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(monthlyTitle.title)
+                                .font(.system(size: 20, weight: .black))
+                                .foregroundColor(monthlyTitle.color)
+                            Text(monthlyTitle.subtitle)
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(monthlyTitle.color.opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(monthlyTitle.color.opacity(0.4), lineWidth: 2)
+                    )
+                }
+                .padding(.horizontal, 4)
+                
                 // 预算行
                 HStack {
                     Text("月预算").font(.system(size: 14)).foregroundColor(.secondary)
@@ -84,8 +153,23 @@ struct RationalityAnalysisBlock: View {
                     HStack { Text("\(analysisPeriod.rawValue)收支明细").font(.system(size: 14, weight: .semibold)).foregroundColor(.secondary); Spacer() }
                     HStack(spacing: 10) {
                         VStack(spacing: 4) { HStack(spacing: 4) { Image(systemName: "cart.fill").font(.system(size: 11)).foregroundColor(.indigo); Text("购入").font(.system(size: 10)).foregroundColor(.secondary) }; Text(formatCurrency(totalSpent)).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.indigo) }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(Color.indigo.opacity(0.08)))
-                        VStack(spacing: 4) { HStack(spacing: 4) { Image(systemName: "arrow.uturn.backward").font(.system(size: 11)).foregroundColor(.orange); Text("回收").font(.system(size: 10)).foregroundColor(.secondary) }; Text(formatCurrency(periodRecovered)).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.orange) }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.08)))
-                        VStack(spacing: 4) { HStack(spacing: 4) { Image(systemName: "equal.circle.fill").font(.system(size: 11)).foregroundColor(.purple); Text("净支出").font(.system(size: 10)).foregroundColor(.secondary) }; Text(formatCurrency(netSpending)).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(netSpending >= 0 ? .purple : .green) }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(Color.purple.opacity(0.08)))
+                        
+                        VStack(spacing: 4) { 
+                            HStack(spacing: 4) { 
+                                Image(systemName: "arrow.uturn.backward").font(.system(size: 11)).foregroundColor(.orange)
+                                Text("回收").font(.system(size: 10)).foregroundColor(.secondary)
+                            }
+                            Text(formatCurrency(periodRecovered)).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.orange)
+                            Text("本月累计回血 \(recycleCount) 件").font(.system(size: 8)).foregroundColor(.orange.opacity(0.8))
+                        }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.08)))
+                        
+                        VStack(spacing: 4) { 
+                            HStack(spacing: 4) { 
+                                Image(systemName: netSpending < 0 ? "arrow.up.circle.fill" : "equal.circle.fill").font(.system(size: 11)).foregroundColor(netSpendingColor)
+                                Text(netSpendingLabel).font(.system(size: 10)).foregroundColor(.secondary)
+                            }
+                            Text(netSpendingAmount).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(netSpendingColor)
+                        }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(netSpendingColor.opacity(0.08)))
                     }
                 }.padding(14).background(RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.08)))
                 

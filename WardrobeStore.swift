@@ -1,6 +1,14 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Monthly Title Model
+struct MonthlyTitle {
+    var title: String
+    var subtitle: String
+    var icon: String
+    var color: Color
+}
+
 class WardrobeStore: ObservableObject {
     @Published var items: [ClothingItem] = []
     @Published var monthlyBudget: Double = 2000.0
@@ -242,6 +250,105 @@ class WardrobeStore: ObservableObject {
         case .month: return monthlyBudget
         case .year: return monthlyBudget * 12.0
         }
+    }
+    
+    // MARK: - Gamification: Monthly Title
+    func calculateMonthlyTitle() -> MonthlyTitle {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Get items from the current calendar month
+        let currentMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: currentMonthStart) ?? now
+        
+        // Filter items purchased in current month
+        let currentMonthItems = items.filter { item in
+            item.date >= currentMonthStart && item.date < nextMonthStart
+        }
+        
+        // Calculate spending for current month
+        let currentMonthSpending = currentMonthItems.reduce(0.0) { $0 + $1.price }
+        
+        // Calculate sold items in current month
+        let currentMonthSold = items.filter { item in
+            guard let soldDate = item.soldDate else { return false }
+            return soldDate >= currentMonthStart && soldDate < nextMonthStart
+        }
+        let soldAmount = currentMonthSold.compactMap { $0.soldPrice }.reduce(0.0, +)
+        let soldCount = currentMonthSold.count
+        
+        // Calculate item count
+        let itemCount = currentMonthItems.count
+        
+        // Title Logic (Priority Order)
+        
+        // 1. Zero Spend
+        if currentMonthSpending == 0 && itemCount == 0 {
+            return MonthlyTitle(
+                title: "清心寡欲仙人",
+                subtitle: "施主，您已经跳出三界外了",
+                icon: "sparkles",
+                color: .purple
+            )
+        }
+        
+        // 2. High Resale (> ¥500)
+        if soldAmount > 500 {
+            return MonthlyTitle(
+                title: "回血大师",
+                subtitle: "您的衣柜竟然是理财产品",
+                icon: "yensign.circle.fill",
+                color: .orange
+            )
+        }
+        
+        // 3. High Spender (> 150% Budget)
+        if currentMonthSpending > monthlyBudget * 1.5 {
+            return MonthlyTitle(
+                title: "钱包粉碎机",
+                subtitle: "再买就要去天桥贴膜了",
+                icon: "exclamationmark.triangle.fill",
+                color: .red
+            )
+        }
+        
+        // 4. Low Spender (< 20% Budget)
+        if currentMonthSpending < monthlyBudget * 0.2 && currentMonthSpending > 0 {
+            return MonthlyTitle(
+                title: "人形存钱罐",
+                subtitle: "抠门...哦不，是节俭的艺术",
+                icon: "banknote.fill",
+                color: .green
+            )
+        }
+        
+        // 5. Many Items Added (> 10 items)
+        if itemCount > 10 {
+            return MonthlyTitle(
+                title: "千手观音",
+                subtitle: "剁手速度赶不上长手速度",
+                icon: "hands.sparkles.fill",
+                color: .pink
+            )
+        }
+        
+        // 6. Balanced (Spend ≈ Budget, within 90%-110%)
+        if currentMonthSpending >= monthlyBudget * 0.9 && currentMonthSpending <= monthlyBudget * 1.1 {
+            return MonthlyTitle(
+                title: "端水大师",
+                subtitle: "居然能精准控制预算，是个狠人",
+                icon: "scale.3d",
+                color: .blue
+            )
+        }
+        
+        // 7. Default/Normal
+        return MonthlyTitle(
+            title: "理性萌新",
+            subtitle: "继续保持，未来可期",
+            icon: "leaf.fill",
+            color: .teal
+        )
     }
     
     // MARK: - 持久化存储

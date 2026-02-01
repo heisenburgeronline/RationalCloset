@@ -140,9 +140,11 @@ struct AllItemRow: View {
             ZStack {
                 if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 60, height: 60).cornerRadius(10).clipped()
+                        .id("\(item.id)-list-image")
                 } else {
                     RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 60, height: 60)
                         .overlay(Image(systemName: "photo").foregroundColor(.gray))
+                        .id("\(item.id)-list-placeholder")
                 }
                 if isSold {
                     RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.5)).frame(width: 60, height: 60)
@@ -219,8 +221,10 @@ struct ItemCardRow: View {
             ZStack {
                 if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 70, height: 70).cornerRadius(10).clipped()
+                        .id("\(item.id)-category-image")
                 } else {
                     RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 70, height: 70).overlay(Image(systemName: "photo").foregroundColor(.gray))
+                        .id("\(item.id)-category-placeholder")
                 }
                 if isSold {
                     RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.5)).frame(width: 70, height: 70)

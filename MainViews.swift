@@ -375,6 +375,7 @@ struct GridItemCard: View {
                         .frame(height: 120)
                         .clipped()
                         .cornerRadius(12)
+                        .id("\(item.id)-grid-image")
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
@@ -385,6 +386,7 @@ struct GridItemCard: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                         )
+                        .id("\(item.id)-grid-placeholder")
                 }
                 
                 if isCold {
@@ -425,6 +427,7 @@ struct GridItemCard: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .id("\(item.id)-grid-card")
     }
 }
 
