@@ -44,8 +44,7 @@ struct ClothingItem: Identifiable, Codable {
     
     var wearDates: [Date] = []
     
-    var frontImageData: Data?
-    var backImageData: Data?
+    var imagesData: [Data] = []
     
     // 详细平铺尺寸 (选填, cm)
     var shoulderWidth: String?        // 肩宽
@@ -59,7 +58,7 @@ struct ClothingItem: Identifiable, Codable {
     var lastWornDate: Date? { wearDates.max() }
     var purchaseDate: Date { date }
     
-    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], frontImageData: Data? = nil, backImageData: Data? = nil, shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLength: String? = nil, waistline: String? = nil) {
+    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], imagesData: [Data] = [], shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLength: String? = nil, waistline: String? = nil) {
         self.id = id
         self.category = category
         self.price = price
@@ -72,8 +71,7 @@ struct ClothingItem: Identifiable, Codable {
         self.size = size
         self.status = status
         self.wearDates = wearDates
-        self.frontImageData = frontImageData
-        self.backImageData = backImageData
+        self.imagesData = imagesData
         self.shoulderWidth = shoulderWidth
         self.chestCircumference = chestCircumference
         self.sleeveLength = sleeveLength

@@ -55,16 +55,88 @@ struct MainDashboardView: View {
 struct AllItemsView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @State private var searchText = ""; @State private var showingSoldItems = true; @State private var itemToDelete: ClothingItem?; @State private var showDeleteConfirmation = false; @State private var itemToMarkSold: ClothingItem?; @State private var showSoldPriceAlert = false; @State private var soldPriceText = ""; @State private var recentlySoldIds: Set<UUID> = []; @State private var recentlyWornIds: Set<UUID> = []
+    @State private var isGridMode = false
     var monthlyGroups: [MonthlyGroup] { wardrobeStore.getItemsGroupedByMonth(includeSold: showingSoldItems, searchQuery: searchText) }
     var totalDisplayedCount: Int { monthlyGroups.reduce(0) { $0 + $1.itemCount } }
+    var gridColumns: [GridItem] { [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] }
     
     var body: some View {
-        List {
-            Section { Toggle("显示已出物品", isOn: $showingSoldItems).tint(.indigo) }
-            if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
-            else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; soldPriceText = ""; showSoldPriceAlert = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
+        Group {
+            if isGridMode {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Toggle("显示已出物品", isOn: $showingSoldItems)
+                            .tint(.indigo)
+                            .padding(.horizontal)
+                            .padding(.top)
+                        
+                        if monthlyGroups.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray.opacity(0.5))
+                                Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                        } else {
+                            ForEach(monthlyGroups) { group in
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Image(systemName: "calendar")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.indigo)
+                                        Text(group.monthKey)
+                                            .font(.system(size: 14, weight: .semibold))
+                                        Spacer()
+                                        Text("本月购入 \(group.itemCount) 件")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.horizontal)
+                                    
+                                    LazyVGrid(columns: gridColumns, spacing: 12) {
+                                        ForEach(group.items) { item in
+                                            NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) {
+                                                GridItemCard(item: item)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                List {
+                    Section { Toggle("显示已出物品", isOn: $showingSoldItems).tint(.indigo) }
+                    if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
+                    else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; soldPriceText = ""; showSoldPriceAlert = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
+                }
+                .listStyle(.insetGrouped)
+            }
         }
-        .listStyle(.insetGrouped).navigationTitle("我的全部衣物").searchable(text: $searchText, prompt: "搜索分类、平台、理由...").toolbar { ToolbarItem(placement: .navigationBarTrailing) { Text("共 \(totalDisplayedCount) 件").font(.caption).foregroundColor(.secondary) } }
+        .navigationTitle("我的全部衣物").searchable(text: $searchText, prompt: "搜索分类、平台、理由...").toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 15) {
+                    Text("共 \(totalDisplayedCount) 件")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Button {
+                        withAnimation {
+                            isGridMode.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isGridMode ? "list.bullet" : "square.grid.3x3")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                }
+            }
+        }
         .alert("确认删除", isPresented: $showDeleteConfirmation) { Button("取消", role: .cancel) { itemToDelete = nil }; Button("删除", role: .destructive) { if let item = itemToDelete { wardrobeStore.deleteItemById(id: item.id); itemToDelete = nil } } } message: { Text("删除后将无法恢复，确定要删除这件衣物吗？") }
         .alert("输入卖出金额", isPresented: $showSoldPriceAlert) { TextField("卖出价格", text: $soldPriceText).keyboardType(.decimalPad); Button("取消", role: .cancel) { itemToMarkSold = nil; soldPriceText = "" }; Button("确认卖出") { markItemAsSold() } } message: { if let item = itemToMarkSold { Text("原价 ¥\(String(format: "%.0f", item.price))，请输入实际卖出金额（可选）") } }
     }
@@ -91,5 +163,61 @@ struct ContentView: View {
         NavigationStack {
             MainDashboardView().environmentObject(wardrobeStore)
         }
+    }
+}
+
+struct GridItemCard: View {
+    var item: ClothingItem
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            if let firstImageData = item.imagesData.first, let uiImage = UIImage(data: firstImageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 120)
+                    .clipped()
+                    .cornerRadius(12)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 120)
+                    .cornerRadius(12)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(.system(size: 30))
+                            .foregroundColor(.gray)
+                    )
+            }
+            
+            VStack(spacing: 4) {
+                Text(item.category)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                
+                HStack(spacing: 4) {
+                    Text("¥\(String(format: "%.0f", item.price))")
+                        .font(.caption.weight(.bold))
+                        .foregroundColor(.indigo)
+                    
+                    if item.status == .sold {
+                        Text("SOLD")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.red)
+                            .cornerRadius(4)
+                    }
+                }
+                
+                if item.wearCount > 0 {
+                    Text("\(item.wearCount)次")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 }

@@ -37,7 +37,7 @@ struct ColdPalaceItemCard: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 8) {
-                if let data = item.frontImageData, let uiImage = UIImage(data: data) {
+                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 140, height: 140).clipped().cornerRadius(12)
                 } else {
                     RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.3)).frame(width: 140, height: 140)
@@ -78,13 +78,11 @@ struct CategoryCardView: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon).font(.system(size: 26)).foregroundColor(.accentColor).frame(width: 40, height: 40)
-                .overlay(alignment: .topTrailing) {
-                    if count > 0 {
-                        Text("\(count)").font(.system(size: 10, weight: .bold)).foregroundColor(.white).frame(width: 18, height: 18).background(Color.red).clipShape(Circle()).offset(x: 6, y: -6)
-                    }
-                }
             Text(name).font(.caption.weight(.medium)).lineLimit(1)
             Text(description).font(.caption2).foregroundColor(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            if count > 0 {
+                Text("\(count)件").font(.caption2).foregroundColor(.secondary)
+            }
         }
         .frame(maxWidth: .infinity).frame(height: 100)
         .background(Color(.secondarySystemGroupedBackground)).cornerRadius(12)
@@ -95,7 +93,7 @@ struct RecentItemCardView: View {
     var item: ClothingItem
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let data = item.frontImageData, let uiImage = UIImage(data: data) {
+            if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 130, height: 130).clipped().cornerRadius(10)
             } else {
                 RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 130, height: 130)
@@ -132,7 +130,7 @@ struct AllItemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                if let data = item.frontImageData, let uiImage = UIImage(data: data) {
+                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 60, height: 60).cornerRadius(10).clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 60, height: 60)
@@ -201,7 +199,7 @@ struct ItemCardRow: View {
     var body: some View {
         HStack(spacing: 15) {
             ZStack {
-                if let data = item.frontImageData, let uiImage = UIImage(data: data) {
+                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 70, height: 70).cornerRadius(10).clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 70, height: 70).overlay(Image(systemName: "photo").foregroundColor(.gray))

@@ -17,8 +17,30 @@ struct ItemDetailView: View {
         ScrollView {
             VStack(spacing: 0) {
                 ZStack(alignment: .topTrailing) {
-                    if let data = item.frontImageData, let uiImage = UIImage(data: data) { Image(uiImage: uiImage).resizable().scaledToFill().frame(height: 350).clipped() }
-                    else { Rectangle().fill(Color.gray.opacity(0.2)).frame(height: 350).overlay(Image(systemName: "photo").font(.system(size: 60)).foregroundColor(.gray)) }
+                    if !item.imagesData.isEmpty {
+                        TabView {
+                            ForEach(Array(item.imagesData.enumerated()), id: \.offset) { index, data in
+                                if let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(height: 350)
+                                        .clipped()
+                                }
+                            }
+                        }
+                        .tabViewStyle(.page(indexDisplayMode: .always))
+                        .frame(height: 350)
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 350)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.gray)
+                            )
+                    }
                     if item.status == .sold { Text("SOLD").font(.system(size: 24, weight: .black)).foregroundColor(.white).padding(.horizontal, 20).padding(.vertical, 10).background(Color.red).cornerRadius(8).rotationEffect(.degrees(-20)).padding(20) }
                 }
                 VStack(spacing: 25) {
@@ -132,16 +154,14 @@ struct AddItemView: View {
     @EnvironmentObject var store: WardrobeStore
     @Environment(\.dismiss) var dismiss
     var categoryName: String
-    @State private var frontPickerItem: PhotosPickerItem?
-    @State private var frontImageData: Data?
-    @State private var backPickerItem: PhotosPickerItem?
-    @State private var backImageData: Data?
+    @State private var photoPickerItems: [PhotosPickerItem] = []
+    @State private var imagesData: [Data] = []
     @State private var purchaseDate = Date()
     @State private var priceText = ""; @State private var originalPriceText = ""; @State private var platformText = ""; @State private var reasonText = ""; @State private var sizeText = ""
     @State private var showExpensiveWarning = false; @State private var showScenarioWarning = false; @State private var currentWarningMessage = ""
     @State private var shoulderWidthText = ""; @State private var chestCircumferenceText = ""; @State private var sleeveLengthText = ""; @State private var clothingLengthText = ""; @State private var waistlineText = ""
     
-    var isFormValid: Bool { !priceText.isEmpty && Double(priceText) != nil && !reasonText.isEmpty }
+    var isFormValid: Bool { !priceText.isEmpty && Double(priceText) != nil && !reasonText.isEmpty && !imagesData.isEmpty }
     var isExpensive: Bool { Double(priceText).map { $0 > 1000 } ?? false }
     var isScenarioExpensive: Bool { categoryName == "场景功能" && (Double(priceText).map { $0 > 500 } ?? false) }
     
@@ -149,11 +169,54 @@ struct AddItemView: View {
         Form {
             Section {
                 VStack(spacing: 15) {
-                    Text("照片").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(spacing: 15) {
-                        PhotosPicker(selection: $frontPickerItem, matching: .images) { if let data = frontImageData, let uiImage = UIImage(data: data) { Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 110, height: 110).cornerRadius(12).clipped() } else { RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.15)).frame(width: 110, height: 110).overlay(VStack(spacing: 5) { Image(systemName: "camera.fill").font(.title2); Text("正面").font(.caption) }.foregroundColor(.gray)) } }
-                        PhotosPicker(selection: $backPickerItem, matching: .images) { if let data = backImageData, let uiImage = UIImage(data: data) { Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 110, height: 110).cornerRadius(12).clipped() } else { RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.15)).frame(width: 110, height: 110).overlay(VStack(spacing: 5) { Image(systemName: "camera.fill").font(.title2); Text("反面").font(.caption) }.foregroundColor(.gray)) } }
+                    HStack {
+                        Text("照片 (\(imagesData.count)/5)").font(.headline)
                         Spacer()
+                        if imagesData.isEmpty {
+                            Text("至少添加1张").font(.caption).foregroundColor(.orange)
+                        }
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(Array(imagesData.enumerated()), id: \.offset) { index, data in
+                                ZStack(alignment: .topTrailing) {
+                                    if let uiImage = UIImage(data: data) {
+                                        Image(uiImage: uiImage)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 110, height: 110)
+                                            .cornerRadius(12)
+                                            .clipped()
+                                    }
+                                    Button {
+                                        imagesData.remove(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 22))
+                                            .foregroundColor(.white)
+                                            .background(Circle().fill(Color.red))
+                                    }
+                                    .padding(4)
+                                }
+                            }
+                            
+                            if imagesData.count < 5 {
+                                PhotosPicker(selection: $photoPickerItems, maxSelectionCount: 5 - imagesData.count, matching: .images) {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.gray.opacity(0.15))
+                                        .frame(width: 110, height: 110)
+                                        .overlay(
+                                            VStack(spacing: 5) {
+                                                Image(systemName: "plus.circle.fill")
+                                                    .font(.title2)
+                                                Text("添加照片").font(.caption)
+                                            }
+                                            .foregroundColor(.gray)
+                                        )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -177,12 +240,27 @@ struct AddItemView: View {
         }
         .navigationTitle("记录 \(categoryName)").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("保存") { saveItem() }.disabled(!isFormValid).bold() } }
-        .onChange(of: frontPickerItem) { _, newItem in loadPhoto(from: newItem, isFront: true) }
-        .onChange(of: backPickerItem) { _, newItem in loadPhoto(from: newItem, isFront: false) }
+        .onChange(of: photoPickerItems) { _, newItems in loadPhotos(from: newItems) }
         .onAppear { currentWarningMessage = RationalityCatMessages.randomWarning() }
     }
     
     private func updateWarnings() { if isExpensive && !showExpensiveWarning { currentWarningMessage = RationalityCatMessages.randomWarning() }; withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { showExpensiveWarning = isExpensive; showScenarioWarning = isScenarioExpensive } }
-    private func loadPhoto(from item: PhotosPickerItem?, isFront: Bool) { guard let item = item else { return }; Task { if let data = try? await item.loadTransferable(type: Data.self) { await MainActor.run { if isFront { frontImageData = data } else { backImageData = data } } } } }
-    private func saveItem() { guard let priceValue = Double(priceText) else { return }; UIImpactFeedbackGenerator(style: .medium).impactOccurred(); let newItem = ClothingItem(id: UUID(), category: categoryName, price: priceValue, originalPrice: Double(originalPriceText) ?? priceValue, soldPrice: nil, soldDate: nil, date: purchaseDate, platform: platformText, reason: reasonText, size: sizeText, status: .active, wearDates: [], frontImageData: frontImageData, backImageData: backImageData, shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, waistline: waistlineText.isEmpty ? nil : waistlineText); store.addNewItem(newItem: newItem); dismiss() }
+    
+    private func loadPhotos(from items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        Task {
+            var loadedData: [Data] = []
+            for item in items {
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    loadedData.append(data)
+                }
+            }
+            await MainActor.run {
+                imagesData.append(contentsOf: loadedData)
+                photoPickerItems = []
+            }
+        }
+    }
+    
+    private func saveItem() { guard let priceValue = Double(priceText) else { return }; UIImpactFeedbackGenerator(style: .medium).impactOccurred(); let newItem = ClothingItem(id: UUID(), category: categoryName, price: priceValue, originalPrice: Double(originalPriceText) ?? priceValue, soldPrice: nil, soldDate: nil, date: purchaseDate, platform: platformText, reason: reasonText, size: sizeText, status: .active, wearDates: [], imagesData: imagesData, shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, waistline: waistlineText.isEmpty ? nil : waistlineText); store.addNewItem(newItem: newItem); dismiss() }
 }
