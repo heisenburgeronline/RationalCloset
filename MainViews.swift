@@ -26,7 +26,7 @@ struct MainDashboardView: View {
                     }.padding(.horizontal)
                     
                     NavigationLink(destination: RandomOutfitView().environmentObject(wardrobeStore)) {
-                        HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("今日穿搭随机器").font(.headline).foregroundColor(.white); Text("让理性小猫帮你搭配").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
+                        HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("一键不理性穿搭").font(.headline).foregroundColor(.white); Text("本功能不考虑季节、温度及路人眼光").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
                     }.padding(.horizontal)
                     
                     let coldPalaceItems = wardrobeStore.getColdPalaceItems()
