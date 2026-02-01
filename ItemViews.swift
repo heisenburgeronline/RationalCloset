@@ -69,9 +69,15 @@ struct ItemDetailView: View {
                     
                     HStack(spacing: 15) {
                         VStack(spacing: 8) { Text("价格").font(.caption).foregroundColor(.secondary); Text("¥\(String(format: "%.0f", item.price))").font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.indigo) }.frame(maxWidth: .infinity).padding(.vertical, 16).background(RoundedRectangle(cornerRadius: 12).fill(Color.indigo.opacity(0.1)))
-                        VStack(spacing: 8) { Text("CPW").font(.caption).foregroundColor(.secondary); Text("¥\(String(format: "%.0f", item.costPerWear))").font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.purple) }.frame(maxWidth: .infinity).padding(.vertical, 16).background(RoundedRectangle(cornerRadius: 12).fill(Color.purple.opacity(0.1)))
+                        VStack(spacing: 8) { Text(LocalizationHelper.cpwLabel).font(.caption).foregroundColor(.secondary); Text("¥\(String(format: "%.0f", item.costPerWear))").font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.purple) }.frame(maxWidth: .infinity).padding(.vertical, 16).background(RoundedRectangle(cornerRadius: 12).fill(Color.purple.opacity(0.1)))
                         VStack(spacing: 8) { Text("穿着次数").font(.caption).foregroundColor(.secondary); Text("\(item.wearCount)").font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.green) }.frame(maxWidth: .infinity).padding(.vertical, 16).background(RoundedRectangle(cornerRadius: 12).fill(Color.green.opacity(0.1)))
                     }.padding(.horizontal)
+                    
+                    // CPW Goal Progress Section
+                    if let targetCPW = item.targetCPW {
+                        CPWGoalProgressView(item: item, targetCPW: targetCPW)
+                            .padding(.horizontal)
+                    }
                     
                     if !item.wearDates.isEmpty {
                         VStack(alignment: .leading, spacing: 15) {
@@ -199,6 +205,7 @@ struct AddItemView: View {
     @State private var bagTypeText = ""; @State private var brandText = ""
     @State private var isProcessingBackground = false
     @State private var selectedImageIndexForBG: Int?
+    @State private var targetCPWText = "" // CPW Goal
     
     var isClothingCategory: Bool {
         let clothingCategories = ["上装", "下装", "外套", "内衣", "运动服", "连衣裙", "套装"]
@@ -360,6 +367,27 @@ struct AddItemView: View {
             
             Section("购买理由（必填）") { TextEditor(text: $reasonText).frame(minHeight: 100).overlay(alignment: .topLeading) { if reasonText.isEmpty { Text("为什么我一定要买这件衣服？").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
             
+            Section {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("回本目标 (\(LocalizationHelper.cpwLabel))")
+                            .font(.subheadline)
+                        Text("期望穿到多少钱/次才算值")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    TextField("例: 10", text: $targetCPWText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
+                }
+            } header: {
+                Label("回本目标 (选填)", systemImage: "target")
+            } footer: {
+                Text("设置一个目标\(LocalizationHelper.cpwLabel)，帮助你追踪这件衣物是否"回本"。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。")
+            }
+            
             Section("备注（选填）") { TextEditor(text: $notesText).frame(minHeight: 80).overlay(alignment: .topLeading) { if notesText.isEmpty { Text("其他备注信息...").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
         }
         .navigationTitle("记录 \(categoryName)").navigationBarTitleDisplayMode(.inline)
@@ -404,7 +432,8 @@ struct AddItemView: View {
             wearDates: [], 
             imagesData: imagesData, 
             notes: notesText.isEmpty ? nil : notesText, 
-            soldNotes: nil, 
+            soldNotes: nil,
+            targetCPW: targetCPWText.isEmpty ? nil : Double(targetCPWText),
             shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, 
             chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, 
             sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, 
@@ -557,6 +586,189 @@ struct MarkAsSoldView: View {
                     }
                     .bold()
                 }
+            }
+        }
+    }
+}
+
+// MARK: - CPW Goal Progress View
+struct CPWGoalProgressView: View {
+    var item: ClothingItem
+    var targetCPW: Double
+    
+    private var currentCPW: Double {
+        item.costPerWear
+    }
+    
+    private var goalReached: Bool {
+        currentCPW <= targetCPW
+    }
+    
+    private var wearsNeeded: Int {
+        if goalReached { return 0 }
+        let targetWears = Int(ceil(item.price / targetCPW))
+        return max(0, targetWears - item.wearCount)
+    }
+    
+    private var progressPercentage: Double {
+        if item.wearCount == 0 { return 0 }
+        let targetWears = item.price / targetCPW
+        return min(1.0, Double(item.wearCount) / targetWears)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "target")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(goalReached ? .yellow : .orange)
+                Text("回本目标")
+                    .font(.headline)
+                Spacer()
+                if goalReached {
+                    Text("🥇")
+                        .font(.title2)
+                }
+            }
+            
+            if goalReached {
+                // Goal Reached!
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.yellow)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("恭喜！已达成目标")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text("当前\(LocalizationHelper.cpwLabel): ¥\(String(format: "%.1f", currentCPW))")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("目标\(LocalizationHelper.cpwLabel)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("¥\(String(format: "%.0f", targetCPW))")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.yellow)
+                        }
+                        
+                        Spacer()
+                        
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("已穿次数")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("\(item.wearCount)次")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.yellow.opacity(0.1))
+                    )
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.yellow.opacity(0.05))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.yellow.opacity(0.3), lineWidth: 2)
+                )
+            } else {
+                // Progress towards goal
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("当前\(LocalizationHelper.cpwLabel)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("¥\(String(format: "%.1f", currentCPW))")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Image(systemName: "arrow.right")
+                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("目标\(LocalizationHelper.cpwLabel)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("¥\(String(format: "%.0f", targetCPW))")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.green)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    // Progress Bar
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("进度")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("\(Int(progressPercentage * 100))%")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(.orange)
+                        }
+                        
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.gray.opacity(0.2))
+                                
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [.orange, .yellow],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: geo.size.width * progressPercentage)
+                                    .animation(.easeInOut(duration: 0.5), value: progressPercentage)
+                            }
+                        }
+                        .frame(height: 12)
+                    }
+                    
+                    // Remaining wears
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.walk")
+                            .foregroundColor(.orange)
+                        Text("再穿 **\(wearsNeeded)** 次即可达成目标")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1.5)
+                )
             }
         }
     }

@@ -429,4 +429,42 @@ class WardrobeStore: ObservableObject {
         UserDefaults.standard.set(coldThresholdDays, forKey: coldThresholdKey)
         UserDefaults.standard.synchronize()
     }
+    
+    // MARK: - Data Export / Backup
+    struct BackupData: Codable {
+        var items: [ClothingItem]
+        var monthlyBudget: Double
+        var coldThresholdDays: Int
+        var exportDate: Date
+        var appVersion: String
+    }
+    
+    func exportDataAsJSON() -> String? {
+        let backup = BackupData(
+            items: items,
+            monthlyBudget: monthlyBudget,
+            coldThresholdDays: coldThresholdDays,
+            exportDate: Date(),
+            appVersion: "11.0"
+        )
+        
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        
+        do {
+            let jsonData = try encoder.encode(backup)
+            return String(data: jsonData, encoding: .utf8)
+        } catch {
+            print("Export failed: \(error)")
+            return nil
+        }
+    }
+    
+    func getExportFileName() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let dateString = formatter.string(from: Date())
+        return "RationalCloset_Backup_\(dateString).json"
+    }
 }

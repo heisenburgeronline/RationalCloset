@@ -1,5 +1,18 @@
 import SwiftUI
 
+// MARK: - 智能本地化
+struct LocalizationHelper {
+    static var cpwLabel: String {
+        // Check if system language is Chinese
+        if let languageCode = Locale.current.language.languageCode?.identifier,
+           languageCode.contains("zh") {
+            return "次均成本"
+        } else {
+            return "CPW"
+        }
+    }
+}
+
 // MARK: - 分类配置
 struct CategoryConfig {
     static let categories: [(name: String, icon: String, description: String)] = [

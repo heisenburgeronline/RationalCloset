@@ -443,6 +443,8 @@ struct SettingsView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @Environment(\.dismiss) var dismiss
     @State private var coldThreshold: Double = 60
+    @State private var showExportSuccess = false
+    @State private var exportedData: String?
     
     var body: some View {
         NavigationStack {
@@ -483,6 +485,36 @@ struct SettingsView: View {
                     Text("在分析视图中可以调整预算")
                 }
                 
+                // Data Management Section
+                Section {
+                    Button {
+                        exportData()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "square.and.arrow.up.on.square")
+                                .font(.system(size: 20))
+                                .foregroundColor(.indigo)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("导出备份")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Text("将所有数据导出为JSON文件")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Label("数据管理", systemImage: "externaldrive")
+                } footer: {
+                    Text("导出的数据包含所有衣物记录、预算设置和穿着历史。可用于备份或迁移到其他设备。")
+                }
+                
                 Section {
                     HStack {
                         Text("总物品数")
@@ -520,6 +552,128 @@ struct SettingsView: View {
             .onAppear {
                 coldThreshold = Double(wardrobeStore.coldThresholdDays)
             }
+            .sheet(item: Binding(
+                get: { exportedData.map { ExportData(content: $0, fileName: wardrobeStore.getExportFileName()) } },
+                set: { exportedData = $0?.content }
+            )) { exportData in
+                ExportShareSheet(data: exportData)
+            }
+        }
+    }
+    
+    private func exportData() {
+        if let jsonString = wardrobeStore.exportDataAsJSON() {
+            exportedData = jsonString
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        }
+    }
+}
+
+// Helper struct for export data
+struct ExportData: Identifiable {
+    let id = UUID()
+    let content: String
+    let fileName: String
+}
+
+// Export Share Sheet
+struct ExportShareSheet: View {
+    @Environment(\.dismiss) var dismiss
+    var data: ExportData
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 30) {
+                VStack(spacing: 16) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.green)
+                    
+                    Text("数据导出成功")
+                        .font(.title2.bold())
+                    
+                    Text("文件名: \(data.fileName)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                }
+                .padding(.top, 40)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("包含 \(dataItemCount()) 件物品记录", systemImage: "tshirt.fill")
+                    Label("完整穿着历史", systemImage: "calendar")
+                    Label("预算与设置", systemImage: "gearshape")
+                }
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                )
+                .padding(.horizontal)
+                
+                Spacer()
+                
+                // Share Button
+                if let url = saveToTemporaryFile() {
+                    ShareLink(item: url) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("分享备份文件")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(14)
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Button {
+                    dismiss()
+                } label: {
+                    Text("完成")
+                        .font(.headline)
+                        .foregroundColor(.indigo)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.indigo.opacity(0.1))
+                        .cornerRadius(14)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+    
+    private func dataItemCount() -> Int {
+        // Parse JSON to count items
+        if let jsonData = data.content.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+           let items = json["items"] as? [[String: Any]] {
+            return items.count
+        }
+        return 0
+    }
+    
+    private func saveToTemporaryFile() -> URL? {
+        let tempDir = FileManager.default.temporaryDirectory
+        let fileURL = tempDir.appendingPathComponent(data.fileName)
+        
+        do {
+            try data.content.write(to: fileURL, atomically: true, encoding: .utf8)
+            return fileURL
+        } catch {
+            print("Failed to save temp file: \(error)")
+            return nil
         }
     }
 }

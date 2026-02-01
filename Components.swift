@@ -168,7 +168,7 @@ struct AllItemRow: View {
                 } else {
                     HStack(spacing: 8) {
                         Text("¥\(String(format: "%.0f", item.price))").font(.subheadline.weight(.semibold))
-                        Text("CPW: ¥\(String(format: "%.0f", item.costPerWear))").font(.caption2).foregroundColor(.purple).padding(.horizontal, 6).padding(.vertical, 2).background(Color.purple.opacity(0.1)).cornerRadius(4)
+                        Text("\(LocalizationHelper.cpwLabel): ¥\(String(format: "%.0f", item.costPerWear))").font(.caption2).foregroundColor(.purple).padding(.horizontal, 6).padding(.vertical, 2).background(Color.purple.opacity(0.1)).cornerRadius(4)
                     }
                 }
                 HStack(spacing: 6) {
@@ -248,7 +248,7 @@ struct ItemCardRow: View {
                     } else {
                         HStack(spacing: 8) {
                             Text("¥\(String(format: "%.2f", item.price))").font(.system(size: 18, weight: .bold))
-                            Text("CPW: ¥\(String(format: "%.0f", item.costPerWear))").font(.caption2).foregroundColor(.purple).padding(.horizontal, 5).padding(.vertical, 2).background(Color.purple.opacity(0.1)).cornerRadius(4)
+                            Text("\(LocalizationHelper.cpwLabel): ¥\(String(format: "%.0f", item.costPerWear))").font(.caption2).foregroundColor(.purple).padding(.horizontal, 5).padding(.vertical, 2).background(Color.purple.opacity(0.1)).cornerRadius(4)
                         }
                     }
                     if isSold { Text("SOLD").font(.caption2.weight(.black)).foregroundColor(.white).padding(.horizontal, 5).padding(.vertical, 2).background(Color.red).cornerRadius(3) }
