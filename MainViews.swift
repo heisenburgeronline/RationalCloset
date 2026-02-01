@@ -27,11 +27,32 @@ struct MainDashboardView: View {
                     
                     let coldPalaceItems = wardrobeStore.getColdPalaceItems()
                     if !coldPalaceItems.isEmpty {
-                        VStack(alignment: .leading, spacing: 15) {
-                            HStack(spacing: 8) { Text("🕸️").font(.system(size: 20)); Text("衣橱冷宫 (Dusty Corner)").font(.title3).bold(); Spacer(); Text("\(coldPalaceItems.count)件").font(.caption).foregroundColor(.white).padding(.horizontal, 10).padding(.vertical, 4).background(Color.orange).cornerRadius(10) }.padding(.horizontal)
-                            Text("购买超过30天从未穿过，该动起来了！").font(.caption).foregroundColor(.orange).padding(.horizontal)
-                            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 15) { ForEach(coldPalaceItems) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { ColdPalaceItemCard(item: item) }.buttonStyle(.plain) } }.padding(.horizontal) }
-                        }.padding(.vertical, 15).background(Color.orange.opacity(0.05)).cornerRadius(16).overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.orange.opacity(0.3), lineWidth: 2)).padding(.horizontal)
+                        NavigationLink(destination: ColdPalaceListView().environmentObject(wardrobeStore)) {
+                            VStack(alignment: .leading, spacing: 15) {
+                                HStack(spacing: 8) { 
+                                    Text("🕸️").font(.system(size: 20))
+                                    Text("衣橱冷宫 (Dusty Corner)").font(.title3).bold().foregroundColor(.primary)
+                                    Spacer()
+                                    Text("\(coldPalaceItems.count)件").font(.caption).foregroundColor(.white).padding(.horizontal, 10).padding(.vertical, 4).background(Color.orange).cornerRadius(10)
+                                    Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(.orange)
+                                }
+                                Text("购买超过30天从未穿过，该动起来了！").font(.caption).foregroundColor(.orange)
+                                ScrollView(.horizontal, showsIndicators: false) { 
+                                    HStack(spacing: 15) { 
+                                        ForEach(coldPalaceItems.prefix(5)) { item in 
+                                            ColdPalaceItemCard(item: item)
+                                        } 
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.vertical, 15)
+                        }
+                        .buttonStyle(.plain)
+                        .background(Color.orange.opacity(0.05))
+                        .cornerRadius(16)
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.orange.opacity(0.3), lineWidth: 2))
+                        .padding(.horizontal)
                     }
                     
                     VStack(alignment: .leading, spacing: 15) {
@@ -162,16 +183,89 @@ struct AllItemsView: View {
 }
 
 struct CategoryDetailView: View {
-    @EnvironmentObject var store: WardrobeStore; var categoryName: String; @State private var recentlyWornIds: Set<UUID> = []
-    var items: [ClothingItem] { store.getItemsForCategory(categoryName: categoryName) }
+    @EnvironmentObject var store: WardrobeStore
+    var categoryName: String
+    @State private var recentlyWornIds: Set<UUID> = []
+    @State private var sortOption: SortOption = .dateNewest
+    
+    var items: [ClothingItem] {
+        let categoryItems = store.getItemsForCategory(categoryName: categoryName)
+        switch sortOption {
+        case .dateNewest:
+            return categoryItems.sorted { $0.purchaseDate > $1.purchaseDate }
+        case .priceHigh:
+            return categoryItems.sorted { $0.price > $1.price }
+        case .priceLow:
+            return categoryItems.sorted { $0.price < $1.price }
+        case .wearMost:
+            return categoryItems.sorted { $0.wearCount > $1.wearCount }
+        case .wearLeast:
+            return categoryItems.sorted { $0.wearCount < $1.wearCount }
+        }
+    }
+    
     var body: some View {
         Group {
-            if items.isEmpty { VStack(spacing: 20) { Image(systemName: "tshirt").font(.system(size: 60)).foregroundColor(.gray.opacity(0.5)); Text("还没有\(categoryName)记录").font(.title3).foregroundColor(.secondary); NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { HStack { Image(systemName: "plus.circle.fill"); Text("添加第一件\(categoryName)") }.font(.headline).foregroundColor(.white).padding(.horizontal, 30).padding(.vertical, 15).background(Color.accentColor).cornerRadius(12) } }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground)) }
-            else { List { ForEach(items) { item in ItemCardRow(item: item, isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) } }.listStyle(.insetGrouped) }
+            if items.isEmpty { 
+                VStack(spacing: 20) { 
+                    Image(systemName: "tshirt").font(.system(size: 60)).foregroundColor(.gray.opacity(0.5))
+                    Text("还没有\(categoryName)记录").font(.title3).foregroundColor(.secondary)
+                    NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { 
+                        HStack { 
+                            Image(systemName: "plus.circle.fill")
+                            Text("添加第一件\(categoryName)") 
+                        }.font(.headline).foregroundColor(.white).padding(.horizontal, 30).padding(.vertical, 15).background(Color.accentColor).cornerRadius(12) 
+                    } 
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground)) 
+            }
+            else { 
+                List { 
+                    ForEach(items) { item in 
+                        ItemCardRow(item: item, isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) 
+                    } 
+                }.listStyle(.insetGrouped) 
+            }
         }
-        .navigationTitle(categoryName).toolbar { ToolbarItem(placement: .navigationBarTrailing) { NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { Image(systemName: "plus").font(.system(size: 16, weight: .semibold)) } } }
+        .navigationTitle(categoryName)
+        .toolbar { 
+            ToolbarItem(placement: .navigationBarTrailing) { 
+                HStack(spacing: 12) {
+                    Menu {
+                        ForEach(SortOption.allCases, id: \.self) { option in
+                            Button {
+                                sortOption = option
+                            } label: {
+                                HStack {
+                                    Text(option.rawValue)
+                                    if sortOption == option {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    
+                    NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { 
+                        Image(systemName: "plus").font(.system(size: 16, weight: .semibold)) 
+                    } 
+                }
+            } 
+        }
     }
-    private func wearItem(_ item: ClothingItem) { UIImpactFeedbackGenerator(style: .medium).impactOccurred(); recentlyWornIds.insert(item.id); withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { store.addWearDate(id: item.id) }; DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { recentlyWornIds.remove(item.id) } }
+    
+    private func wearItem(_ item: ClothingItem) { 
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        recentlyWornIds.insert(item.id)
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { 
+            store.addWearDate(id: item.id) 
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { 
+            recentlyWornIds.remove(item.id) 
+        } 
+    }
 }
 
 struct ContentView: View {
@@ -179,6 +273,89 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             MainDashboardView().environmentObject(wardrobeStore)
+        }
+    }
+}
+
+struct ColdPalaceListView: View {
+    @EnvironmentObject var store: WardrobeStore
+    @State private var recentlyWornIds: Set<UUID> = []
+    @State private var sortOption: SortOption = .dateNewest
+    
+    var coldPalaceItems: [ClothingItem] {
+        let items = store.getColdPalaceItems()
+        switch sortOption {
+        case .dateNewest:
+            return items.sorted { $0.purchaseDate > $1.purchaseDate }
+        case .priceHigh:
+            return items.sorted { $0.price > $1.price }
+        case .priceLow:
+            return items.sorted { $0.price < $1.price }
+        case .wearMost:
+            return items.sorted { $0.wearCount > $1.wearCount }
+        case .wearLeast:
+            return items.sorted { $0.wearCount < $1.wearCount }
+        }
+    }
+    
+    var body: some View {
+        Group {
+            if coldPalaceItems.isEmpty {
+                VStack(spacing: 20) {
+                    Text("🎉").font(.system(size: 80))
+                    Text("太棒了！").font(.title.bold())
+                    Text("没有闲置的衣物").font(.title3).foregroundColor(.secondary)
+                    Text("你的衣橱利用率很高！").font(.subheadline).foregroundColor(.secondary)
+                }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground))
+            } else {
+                List {
+                    Section {
+                        Text("这些物品已经超过\(store.coldThresholdDays)天未穿着了，是时候让它们重新发光，或者考虑出售吧！")
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                            .padding(.vertical, 8)
+                    }
+                    
+                    ForEach(coldPalaceItems) { item in
+                        NavigationLink(destination: ItemDetailView(item: item).environmentObject(store)) {
+                            ItemCardRow(item: item, isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) })
+                        }
+                    }
+                }.listStyle(.insetGrouped)
+            }
+        }
+        .navigationTitle("衣橱冷宫 🕸️")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    ForEach(SortOption.allCases, id: \.self) { option in
+                        Button {
+                            sortOption = option
+                        } label: {
+                            HStack {
+                                Text(option.rawValue)
+                                if sortOption == option {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+            }
+        }
+    }
+    
+    private func wearItem(_ item: ClothingItem) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        recentlyWornIds.insert(item.id)
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+            store.addWearDate(id: item.id)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            recentlyWornIds.remove(item.id)
         }
     }
 }

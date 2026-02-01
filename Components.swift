@@ -124,6 +124,14 @@ struct AllItemRow: View {
         if let s = item.shoulderWidth, !s.isEmpty { parts.append("肩宽:\(s)") }
         if let sl = item.sleeveLength, !sl.isEmpty { parts.append("袖长:\(sl)") }
         if let w = item.waistline, !w.isEmpty { parts.append("腰围:\(w)") }
+        if let pl = item.pantsLength, !pl.isEmpty { parts.append("裤长:\(pl)") }
+        if let h = item.hips, !h.isEmpty { parts.append("臀围:\(h)") }
+        if let lo = item.legOpening, !lo.isEmpty { parts.append("脚阔:\(lo)") }
+        if let cbl = item.centerBackLength, !cbl.isEmpty { parts.append("后中长:\(cbl)") }
+        if let fl = item.frontLength, !fl.isEmpty { parts.append("前长:\(fl)") }
+        if let hm = item.hem, !hm.isEmpty { parts.append("下摆:\(hm)") }
+        if let bt = item.bagType, !bt.isEmpty { parts.append("类型:\(bt)") }
+        if let br = item.brand, !br.isEmpty { parts.append("品牌:\(br)") }
         return parts.isEmpty ? nil : parts.joined(separator: " | ")
     }
     
@@ -195,6 +203,14 @@ struct ItemCardRow: View {
         if let s = item.shoulderWidth, !s.isEmpty { parts.append("肩宽:\(s)") }
         if let sl = item.sleeveLength, !sl.isEmpty { parts.append("袖长:\(sl)") }
         if let w = item.waistline, !w.isEmpty { parts.append("腰围:\(w)") }
+        if let pl = item.pantsLength, !pl.isEmpty { parts.append("裤长:\(pl)") }
+        if let h = item.hips, !h.isEmpty { parts.append("臀围:\(h)") }
+        if let lo = item.legOpening, !lo.isEmpty { parts.append("脚阔:\(lo)") }
+        if let cbl = item.centerBackLength, !cbl.isEmpty { parts.append("后中长:\(cbl)") }
+        if let fl = item.frontLength, !fl.isEmpty { parts.append("前长:\(fl)") }
+        if let hm = item.hem, !hm.isEmpty { parts.append("下摆:\(hm)") }
+        if let bt = item.bagType, !bt.isEmpty { parts.append("类型:\(bt)") }
+        if let br = item.brand, !br.isEmpty { parts.append("品牌:\(br)") }
         return parts.isEmpty ? nil : parts.joined(separator: " | ")
     }
     

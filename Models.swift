@@ -13,6 +13,14 @@ enum StatisticsPeriod: String, CaseIterable {
     case year = "近一年"
 }
 
+enum SortOption: String, CaseIterable {
+    case dateNewest = "购买日期：最新"
+    case priceHigh = "价格：高到低"
+    case priceLow = "价格：低到高"
+    case wearMost = "穿着次数：最多"
+    case wearLeast = "穿着次数：最少"
+}
+
 struct CategorySpending: Identifiable {
     var id: String { category }
     var category: String
@@ -56,12 +64,26 @@ struct ClothingItem: Identifiable, Codable {
     var clothingLength: String?       // 衣长
     var waistline: String?            // 腰围
     
+    // 下装专属字段
+    var pantsLength: String?          // 裤长
+    var hips: String?                 // 臀围
+    var legOpening: String?           // 脚阔
+    
+    // 裙装专属字段
+    var centerBackLength: String?     // 后中长
+    var frontLength: String?          // 前衣长
+    var hem: String?                  // 下摆
+    
+    // 包包专属字段
+    var bagType: String?              // 包包类型
+    var brand: String?                // 品牌
+    
     // 计算属性
     var wearCount: Int { wearDates.count }
     var lastWornDate: Date? { wearDates.max() }
     var purchaseDate: Date { date }
     
-    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], imagesData: [Data] = [], notes: String? = nil, soldNotes: String? = nil, shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLength: String? = nil, waistline: String? = nil) {
+    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], imagesData: [Data] = [], notes: String? = nil, soldNotes: String? = nil, shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLength: String? = nil, waistline: String? = nil, pantsLength: String? = nil, hips: String? = nil, legOpening: String? = nil, centerBackLength: String? = nil, frontLength: String? = nil, hem: String? = nil, bagType: String? = nil, brand: String? = nil) {
         self.id = id
         self.category = category
         self.price = price
@@ -82,6 +104,14 @@ struct ClothingItem: Identifiable, Codable {
         self.sleeveLength = sleeveLength
         self.clothingLength = clothingLength
         self.waistline = waistline
+        self.pantsLength = pantsLength
+        self.hips = hips
+        self.legOpening = legOpening
+        self.centerBackLength = centerBackLength
+        self.frontLength = frontLength
+        self.hem = hem
+        self.bagType = bagType
+        self.brand = brand
     }
     
     var monthYearKey: String {

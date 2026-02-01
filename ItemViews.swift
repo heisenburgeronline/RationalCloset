@@ -9,7 +9,21 @@ struct ItemDetailView: View {
     @State private var showSoldSheet = false
     @State private var justWore = false
     
-    private var hasDetailedSizes: Bool { (item.shoulderWidth != nil && !item.shoulderWidth!.isEmpty) || (item.chestCircumference != nil && !item.chestCircumference!.isEmpty) || (item.sleeveLength != nil && !item.sleeveLength!.isEmpty) || (item.clothingLength != nil && !item.clothingLength!.isEmpty) || (item.waistline != nil && !item.waistline!.isEmpty) }
+    private var hasDetailedSizes: Bool { 
+        (item.shoulderWidth != nil && !item.shoulderWidth!.isEmpty) || 
+        (item.chestCircumference != nil && !item.chestCircumference!.isEmpty) || 
+        (item.sleeveLength != nil && !item.sleeveLength!.isEmpty) || 
+        (item.clothingLength != nil && !item.clothingLength!.isEmpty) || 
+        (item.waistline != nil && !item.waistline!.isEmpty) ||
+        (item.pantsLength != nil && !item.pantsLength!.isEmpty) ||
+        (item.hips != nil && !item.hips!.isEmpty) ||
+        (item.legOpening != nil && !item.legOpening!.isEmpty) ||
+        (item.centerBackLength != nil && !item.centerBackLength!.isEmpty) ||
+        (item.frontLength != nil && !item.frontLength!.isEmpty) ||
+        (item.hem != nil && !item.hem!.isEmpty) ||
+        (item.bagType != nil && !item.bagType!.isEmpty) ||
+        (item.brand != nil && !item.brand!.isEmpty)
+    }
     private func formatDate(_ date: Date) -> String { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "zh_CN"); return f.string(from: date) }
     
     var body: some View {
@@ -88,6 +102,14 @@ struct ItemDetailView: View {
                                 if let sl = item.sleeveLength, !sl.isEmpty { SizeInfoCard(label: "袖长", value: "\(sl)cm") }
                                 if let l = item.clothingLength, !l.isEmpty { SizeInfoCard(label: "衣长", value: "\(l)cm") }
                                 if let w = item.waistline, !w.isEmpty { SizeInfoCard(label: "腰围", value: "\(w)cm") }
+                                if let pl = item.pantsLength, !pl.isEmpty { SizeInfoCard(label: "裤长", value: "\(pl)cm") }
+                                if let h = item.hips, !h.isEmpty { SizeInfoCard(label: "臀围", value: "\(h)cm") }
+                                if let lo = item.legOpening, !lo.isEmpty { SizeInfoCard(label: "脚阔", value: "\(lo)cm") }
+                                if let cbl = item.centerBackLength, !cbl.isEmpty { SizeInfoCard(label: "后中长", value: "\(cbl)cm") }
+                                if let fl = item.frontLength, !fl.isEmpty { SizeInfoCard(label: "前衣长", value: "\(fl)cm") }
+                                if let hm = item.hem, !hm.isEmpty { SizeInfoCard(label: "下摆", value: "\(hm)cm") }
+                                if let bt = item.bagType, !bt.isEmpty { SizeInfoCard(label: "类型", value: bt) }
+                                if let br = item.brand, !br.isEmpty { SizeInfoCard(label: "品牌", value: br) }
                             }
                         }.padding().background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
                     }
@@ -171,6 +193,9 @@ struct AddItemView: View {
     @State private var priceText = ""; @State private var originalPriceText = ""; @State private var platformText = ""; @State private var reasonText = ""; @State private var sizeText = ""; @State private var notesText = ""
     @State private var showExpensiveWarning = false; @State private var showScenarioWarning = false; @State private var currentWarningMessage = ""
     @State private var shoulderWidthText = ""; @State private var chestCircumferenceText = ""; @State private var sleeveLengthText = ""; @State private var clothingLengthText = ""; @State private var waistlineText = ""
+    @State private var pantsLengthText = ""; @State private var hipsText = ""; @State private var legOpeningText = ""
+    @State private var centerBackLengthText = ""; @State private var frontLengthText = ""; @State private var hemText = ""
+    @State private var bagTypeText = ""; @State private var brandText = ""
     
     var isClothingCategory: Bool {
         let clothingCategories = ["上装", "下装", "外套", "内衣", "运动服", "连衣裙", "套装"]
@@ -244,9 +269,54 @@ struct AddItemView: View {
                     HStack { Text("原价"); Spacer(); TextField("可选", text: $originalPriceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
                 }
             }
-            Section("基本信息") { DatePicker("购买日期", selection: $purchaseDate, displayedComponents: .date); HStack { Text("购买平台"); Spacer(); TextField("淘宝、京东...", text: $platformText).multilineTextAlignment(.trailing) }; HStack { Text("尺码"); Spacer(); TextField("M / L / XL...", text: $sizeText).multilineTextAlignment(.trailing).frame(width: 100) } }
+            Section("基本信息") { 
+                DatePicker("购买日期", selection: $purchaseDate, displayedComponents: .date)
+                HStack { Text("购买平台"); Spacer(); TextField("淘宝、京东...", text: $platformText).multilineTextAlignment(.trailing) }
+                if categoryName != "包包" {
+                    HStack { Text("尺码"); Spacer(); TextField("M / L / XL...", text: $sizeText).multilineTextAlignment(.trailing).frame(width: 100) }
+                }
+                if categoryName == "包包" {
+                    HStack { Text("品牌"); Spacer(); TextField("例: LV / Gucci...", text: $brandText).multilineTextAlignment(.trailing) }
+                }
+            }
             
-            if isClothingCategory {
+            // 分类专属测量字段
+            if categoryName == "上装" {
+                Section("详细平铺尺寸 (选填, cm)") {
+                    HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                }
+            }
+            
+            if categoryName == "下装" {
+                Section("详细平铺尺寸 (选填, cm)") {
+                    HStack { Text("裤长"); Spacer(); TextField("例: 105", text: $pantsLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("腰围"); Spacer(); TextField("例: 78", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("臀围"); Spacer(); TextField("例: 100", text: $hipsText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("脚阔"); Spacer(); TextField("例: 35", text: $legOpeningText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                }
+            }
+            
+            if categoryName == "裙装" {
+                Section("详细平铺尺寸 (选填, cm)") {
+                    HStack { Text("后中长"); Spacer(); TextField("例: 95", text: $centerBackLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("前衣长"); Spacer(); TextField("例: 90", text: $frontLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("胸围"); Spacer(); TextField("例: 88", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("腰围"); Spacer(); TextField("例: 68", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("下摆"); Spacer(); TextField("例: 120", text: $hemText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                }
+            }
+            
+            if categoryName == "包包" {
+                Section("包包信息 (选填)") {
+                    HStack { Text("类型"); Spacer(); TextField("例: Tote / 单肩包...", text: $bagTypeText).multilineTextAlignment(.trailing) }
+                }
+            }
+            
+            if isClothingCategory && categoryName != "下装" && categoryName != "裙装" {
                 Section("详细平铺尺寸 (选填, cm)") {
                     HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
                     HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
@@ -284,7 +354,42 @@ struct AddItemView: View {
         }
     }
     
-    private func saveItem() { guard let priceValue = Double(priceText) else { return }; UIImpactFeedbackGenerator(style: .medium).impactOccurred(); let newItem = ClothingItem(id: UUID(), category: categoryName, price: priceValue, originalPrice: Double(originalPriceText) ?? priceValue, soldPrice: nil, soldDate: nil, date: purchaseDate, platform: platformText, reason: reasonText, size: sizeText, status: .active, wearDates: [], imagesData: imagesData, notes: notesText.isEmpty ? nil : notesText, soldNotes: nil, shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, waistline: waistlineText.isEmpty ? nil : waistlineText); store.addNewItem(newItem: newItem); dismiss() }
+    private func saveItem() { 
+        guard let priceValue = Double(priceText) else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let newItem = ClothingItem(
+            id: UUID(), 
+            category: categoryName, 
+            price: priceValue, 
+            originalPrice: Double(originalPriceText) ?? priceValue, 
+            soldPrice: nil, 
+            soldDate: nil, 
+            date: purchaseDate, 
+            platform: platformText, 
+            reason: reasonText, 
+            size: sizeText, 
+            status: .active, 
+            wearDates: [], 
+            imagesData: imagesData, 
+            notes: notesText.isEmpty ? nil : notesText, 
+            soldNotes: nil, 
+            shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, 
+            chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, 
+            sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, 
+            clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, 
+            waistline: waistlineText.isEmpty ? nil : waistlineText,
+            pantsLength: pantsLengthText.isEmpty ? nil : pantsLengthText,
+            hips: hipsText.isEmpty ? nil : hipsText,
+            legOpening: legOpeningText.isEmpty ? nil : legOpeningText,
+            centerBackLength: centerBackLengthText.isEmpty ? nil : centerBackLengthText,
+            frontLength: frontLengthText.isEmpty ? nil : frontLengthText,
+            hem: hemText.isEmpty ? nil : hemText,
+            bagType: bagTypeText.isEmpty ? nil : bagTypeText,
+            brand: brandText.isEmpty ? nil : brandText
+        )
+        store.addNewItem(newItem: newItem)
+        dismiss() 
+    }
 }
 
 struct MarkAsSoldView: View {
