@@ -3,6 +3,7 @@ import SwiftUI
 struct MainDashboardView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @Environment(\.horizontalSizeClass) var sizeClass
+    @State private var showSettings = false
     var gridColumns: [GridItem] { if sizeClass == .compact { return [GridItem(.flexible()), GridItem(.flexible())] } else { return [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] } }
     
     var body: some View {
@@ -49,13 +50,26 @@ struct MainDashboardView: View {
                 }
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView().environmentObject(wardrobeStore)
+        }
     }
 }
 
 struct AllItemsView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
-    @State private var searchText = ""; @State private var showingSoldItems = true; @State private var itemToDelete: ClothingItem?; @State private var showDeleteConfirmation = false; @State private var itemToMarkSold: ClothingItem?; @State private var showSoldPriceAlert = false; @State private var soldPriceText = ""; @State private var recentlySoldIds: Set<UUID> = []; @State private var recentlyWornIds: Set<UUID> = []
-    @State private var isGridMode = false
+    @State private var searchText = ""; @State private var showingSoldItems = true; @State private var itemToDelete: ClothingItem?; @State private var showDeleteConfirmation = false; @State private var itemToMarkSold: ClothingItem?; @State private var showSoldSheet = false
+    @State private var isGridMode = false; @State private var recentlySoldIds: Set<UUID> = []; @State private var recentlyWornIds: Set<UUID> = []
     var monthlyGroups: [MonthlyGroup] { wardrobeStore.getItemsGroupedByMonth(includeSold: showingSoldItems, searchQuery: searchText) }
     var totalDisplayedCount: Int { monthlyGroups.reduce(0) { $0 + $1.itemCount } }
     var gridColumns: [GridItem] { [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] }
@@ -115,7 +129,7 @@ struct AllItemsView: View {
                 List {
                     Section { Toggle("显示已出物品", isOn: $showingSoldItems).tint(.indigo) }
                     if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
-                    else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; soldPriceText = ""; showSoldPriceAlert = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
+                    else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; showSoldSheet = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
                 }
                 .listStyle(.insetGrouped)
             }
@@ -138,10 +152,13 @@ struct AllItemsView: View {
             }
         }
         .alert("确认删除", isPresented: $showDeleteConfirmation) { Button("取消", role: .cancel) { itemToDelete = nil }; Button("删除", role: .destructive) { if let item = itemToDelete { wardrobeStore.deleteItemById(id: item.id); itemToDelete = nil } } } message: { Text("删除后将无法恢复，确定要删除这件衣物吗？") }
-        .alert("输入卖出金额", isPresented: $showSoldPriceAlert) { TextField("卖出价格", text: $soldPriceText).keyboardType(.decimalPad); Button("取消", role: .cancel) { itemToMarkSold = nil; soldPriceText = "" }; Button("确认卖出") { markItemAsSold() } } message: { if let item = itemToMarkSold { Text("原价 ¥\(String(format: "%.0f", item.price))，请输入实际卖出金额（可选）") } }
+        .sheet(isPresented: $showSoldSheet) {
+            if let item = itemToMarkSold {
+                MarkAsSoldView(item: item).environmentObject(wardrobeStore)
+            }
+        }
     }
     private func wearItem(_ item: ClothingItem) { UIImpactFeedbackGenerator(style: .medium).impactOccurred(); recentlyWornIds.insert(item.id); withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { wardrobeStore.addWearDate(id: item.id) }; DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { recentlyWornIds.remove(item.id) } }
-    private func markItemAsSold() { guard let item = itemToMarkSold else { return }; UINotificationFeedbackGenerator().notificationOccurred(.success); recentlySoldIds.insert(item.id); withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) { wardrobeStore.markAsSoldById(id: item.id, soldPrice: Double(soldPriceText)) }; itemToMarkSold = nil; soldPriceText = ""; DispatchQueue.main.asyncAfter(deadline: .now() + 2) { recentlySoldIds.remove(item.id) } }
 }
 
 struct CategoryDetailView: View {
@@ -167,27 +184,39 @@ struct ContentView: View {
 }
 
 struct GridItemCard: View {
+    @EnvironmentObject var wardrobeStore: WardrobeStore
     var item: ClothingItem
+    var isCold: Bool { item.isCold(threshold: wardrobeStore.coldThresholdDays) }
     
     var body: some View {
         VStack(spacing: 8) {
-            if let firstImageData = item.imagesData.first, let uiImage = UIImage(data: firstImageData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 120)
-                    .clipped()
-                    .cornerRadius(12)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 120)
-                    .cornerRadius(12)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 30))
-                            .foregroundColor(.gray)
-                    )
+            ZStack(alignment: .topLeading) {
+                if let firstImageData = item.imagesData.first, let uiImage = UIImage(data: firstImageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 120)
+                        .clipped()
+                        .cornerRadius(12)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 120)
+                        .cornerRadius(12)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                        )
+                }
+                
+                if isCold {
+                    Text("❄️")
+                        .font(.system(size: 20))
+                        .padding(4)
+                        .background(Circle().fill(Color.white.opacity(0.9)))
+                        .padding(6)
+                }
             }
             
             VStack(spacing: 4) {
@@ -219,5 +248,90 @@ struct GridItemCard: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct SettingsView: View {
+    @EnvironmentObject var wardrobeStore: WardrobeStore
+    @Environment(\.dismiss) var dismiss
+    @State private var coldThreshold: Double = 60
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("冷宫阈值")
+                                .font(.headline)
+                            Spacer()
+                            Text("\(Int(coldThreshold)) 天")
+                                .font(.headline)
+                                .foregroundColor(.indigo)
+                        }
+                        
+                        Slider(value: $coldThreshold, in: 7...180, step: 1)
+                            .tint(.indigo)
+                        
+                        Text("物品超过此天数未穿着，将被标记为"冷宫"（❄️）")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                } header: {
+                    Text("冷宫设置")
+                }
+                
+                Section {
+                    HStack {
+                        Text("月度预算")
+                        Spacer()
+                        Text("¥\(String(format: "%.0f", wardrobeStore.monthlyBudget))")
+                            .foregroundColor(.secondary)
+                    }
+                } header: {
+                    Text("预算设置")
+                } footer: {
+                    Text("在分析视图中可以调整预算")
+                }
+                
+                Section {
+                    HStack {
+                        Text("总物品数")
+                        Spacer()
+                        Text("\(wardrobeStore.items.count)")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("在用物品")
+                        Spacer()
+                        Text("\(wardrobeStore.getActiveItems().count)")
+                            .foregroundColor(.green)
+                    }
+                    HStack {
+                        Text("冷宫物品")
+                        Spacer()
+                        Text("\(wardrobeStore.getColdItemsCount())")
+                            .foregroundColor(.cyan)
+                    }
+                } header: {
+                    Text("统计信息")
+                }
+            }
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        wardrobeStore.updateColdThreshold(days: Int(coldThreshold))
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+            .onAppear {
+                coldThreshold = Double(wardrobeStore.coldThresholdDays)
+            }
+        }
     }
 }

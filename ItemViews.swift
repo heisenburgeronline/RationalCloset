@@ -6,8 +6,7 @@ struct ItemDetailView: View {
     @Environment(\.dismiss) var dismiss
     var item: ClothingItem
     @State private var showEditSheet = false
-    @State private var showSoldPriceAlert = false
-    @State private var soldPriceText = ""
+    @State private var showSoldSheet = false
     @State private var justWore = false
     
     private var hasDetailedSizes: Bool { (item.shoulderWidth != nil && !item.shoulderWidth!.isEmpty) || (item.chestCircumference != nil && !item.chestCircumference!.isEmpty) || (item.sleeveLength != nil && !item.sleeveLength!.isEmpty) || (item.clothingLength != nil && !item.clothingLength!.isEmpty) || (item.waistline != nil && !item.waistline!.isEmpty) }
@@ -99,15 +98,27 @@ struct ItemDetailView: View {
                             InfoRow(label: "购买日期", value: formatDate(item.purchaseDate))
                             if item.originalPrice != item.price { InfoRow(label: "原价", value: "¥\(String(format: "%.0f", item.originalPrice))") }
                             if !item.reason.isEmpty { VStack(alignment: .leading, spacing: 6) { Text("购买理由").font(.caption).foregroundColor(.secondary); Text(item.reason).font(.subheadline).foregroundColor(.primary) }.frame(maxWidth: .infinity, alignment: .leading) }
+                            if let notes = item.notes, !notes.isEmpty { VStack(alignment: .leading, spacing: 6) { Text("备注").font(.caption).foregroundColor(.secondary); Text(notes).font(.subheadline).foregroundColor(.primary) }.frame(maxWidth: .infinity, alignment: .leading) }
                         }
                     }.padding().background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
+                    
+                    if item.status == .sold {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack { Image(systemName: "tag.fill").font(.system(size: 16, weight: .semibold)).foregroundColor(.orange); Text("出售信息").font(.headline) }
+                            VStack(spacing: 10) {
+                                if let soldDate = item.soldDate { InfoRow(label: "出售日期", value: formatDate(soldDate)) }
+                                if let soldPrice = item.soldPrice { InfoRow(label: "出售价格", value: "¥\(String(format: "%.0f", soldPrice))") }
+                                if let soldNotes = item.soldNotes, !soldNotes.isEmpty { VStack(alignment: .leading, spacing: 6) { Text("出售备注").font(.caption).foregroundColor(.secondary); Text(soldNotes).font(.subheadline).foregroundColor(.primary) }.frame(maxWidth: .infinity, alignment: .leading) }
+                            }
+                        }.padding().background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
+                    }
                     
                     if item.status == .active {
                         VStack(spacing: 12) {
                             Button { wardrobeStore.addWearDate(id: item.id); UIImpactFeedbackGenerator(style: .medium).impactOccurred(); justWore = true; DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { justWore = false } } label: { HStack { Image(systemName: "figure.walk"); Text("今天穿了").font(.headline) }.frame(maxWidth: .infinity).padding().background(LinearGradient(colors: [.green, .teal], startPoint: .leading, endPoint: .trailing)).foregroundColor(.white).cornerRadius(14) }.scaleEffect(justWore ? 1.1 : 1.0).animation(.spring(response: 0.3, dampingFraction: 0.5), value: justWore)
                             HStack(spacing: 12) {
                                 Button { showEditSheet = true } label: { HStack { Image(systemName: "pencil"); Text("编辑") }.font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding().background(Color.indigo.opacity(0.1)).foregroundColor(.indigo).cornerRadius(12) }
-                                Button { soldPriceText = ""; showSoldPriceAlert = true } label: { HStack { Image(systemName: "tag"); Text("已出") }.font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding().background(Color.orange.opacity(0.1)).foregroundColor(.orange).cornerRadius(12) }
+                                Button { showSoldSheet = true } label: { HStack { Image(systemName: "tag"); Text("已出") }.font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding().background(Color.orange.opacity(0.1)).foregroundColor(.orange).cornerRadius(12) }
                             }
                         }.padding(.horizontal)
                     }
@@ -116,8 +127,8 @@ struct ItemDetailView: View {
             }
         }
         .navigationTitle("物品详情").navigationBarTitleDisplayMode(.inline)
-        .alert("输入卖出金额", isPresented: $showSoldPriceAlert) { TextField("卖出价格", text: $soldPriceText).keyboardType(.decimalPad); Button("取消", role: .cancel) { soldPriceText = "" }; Button("确认卖出") { wardrobeStore.markAsSoldById(id: item.id, soldPrice: Double(soldPriceText)); UINotificationFeedbackGenerator().notificationOccurred(.success); dismiss() } } message: { Text("原价 ¥\(String(format: "%.0f", item.price))，请输入实际卖出金额（可选）") }
         .sheet(isPresented: $showEditSheet) { EditItemView(item: item).environmentObject(wardrobeStore) }
+        .sheet(isPresented: $showSoldSheet) { MarkAsSoldView(item: item).environmentObject(wardrobeStore) }
     }
 }
 
@@ -157,9 +168,14 @@ struct AddItemView: View {
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var imagesData: [Data] = []
     @State private var purchaseDate = Date()
-    @State private var priceText = ""; @State private var originalPriceText = ""; @State private var platformText = ""; @State private var reasonText = ""; @State private var sizeText = ""
+    @State private var priceText = ""; @State private var originalPriceText = ""; @State private var platformText = ""; @State private var reasonText = ""; @State private var sizeText = ""; @State private var notesText = ""
     @State private var showExpensiveWarning = false; @State private var showScenarioWarning = false; @State private var currentWarningMessage = ""
     @State private var shoulderWidthText = ""; @State private var chestCircumferenceText = ""; @State private var sleeveLengthText = ""; @State private var clothingLengthText = ""; @State private var waistlineText = ""
+    
+    var isClothingCategory: Bool {
+        let clothingCategories = ["上装", "下装", "外套", "内衣", "运动服", "连衣裙", "套装"]
+        return clothingCategories.contains(categoryName)
+    }
     
     var isFormValid: Bool { !priceText.isEmpty && Double(priceText) != nil && !reasonText.isEmpty && !imagesData.isEmpty }
     var isExpensive: Bool { Double(priceText).map { $0 > 1000 } ?? false }
@@ -229,14 +245,20 @@ struct AddItemView: View {
                 }
             }
             Section("基本信息") { DatePicker("购买日期", selection: $purchaseDate, displayedComponents: .date); HStack { Text("购买平台"); Spacer(); TextField("淘宝、京东...", text: $platformText).multilineTextAlignment(.trailing) }; HStack { Text("尺码"); Spacer(); TextField("M / L / XL...", text: $sizeText).multilineTextAlignment(.trailing).frame(width: 100) } }
-            Section("详细平铺尺寸 (选填, cm)") {
-                HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            
+            if isClothingCategory {
+                Section("详细平铺尺寸 (选填, cm)") {
+                    HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                    HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+                }
             }
+            
             Section("购买理由（必填）") { TextEditor(text: $reasonText).frame(minHeight: 100).overlay(alignment: .topLeading) { if reasonText.isEmpty { Text("为什么我一定要买这件衣服？").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
+            
+            Section("备注（选填）") { TextEditor(text: $notesText).frame(minHeight: 80).overlay(alignment: .topLeading) { if notesText.isEmpty { Text("其他备注信息...").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
         }
         .navigationTitle("记录 \(categoryName)").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("保存") { saveItem() }.disabled(!isFormValid).bold() } }
@@ -262,5 +284,58 @@ struct AddItemView: View {
         }
     }
     
-    private func saveItem() { guard let priceValue = Double(priceText) else { return }; UIImpactFeedbackGenerator(style: .medium).impactOccurred(); let newItem = ClothingItem(id: UUID(), category: categoryName, price: priceValue, originalPrice: Double(originalPriceText) ?? priceValue, soldPrice: nil, soldDate: nil, date: purchaseDate, platform: platformText, reason: reasonText, size: sizeText, status: .active, wearDates: [], imagesData: imagesData, shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, waistline: waistlineText.isEmpty ? nil : waistlineText); store.addNewItem(newItem: newItem); dismiss() }
+    private func saveItem() { guard let priceValue = Double(priceText) else { return }; UIImpactFeedbackGenerator(style: .medium).impactOccurred(); let newItem = ClothingItem(id: UUID(), category: categoryName, price: priceValue, originalPrice: Double(originalPriceText) ?? priceValue, soldPrice: nil, soldDate: nil, date: purchaseDate, platform: platformText, reason: reasonText, size: sizeText, status: .active, wearDates: [], imagesData: imagesData, notes: notesText.isEmpty ? nil : notesText, soldNotes: nil, shoulderWidth: shoulderWidthText.isEmpty ? nil : shoulderWidthText, chestCircumference: chestCircumferenceText.isEmpty ? nil : chestCircumferenceText, sleeveLength: sleeveLengthText.isEmpty ? nil : sleeveLengthText, clothingLength: clothingLengthText.isEmpty ? nil : clothingLengthText, waistline: waistlineText.isEmpty ? nil : waistlineText); store.addNewItem(newItem: newItem); dismiss() }
+}
+
+struct MarkAsSoldView: View {
+    @EnvironmentObject var wardrobeStore: WardrobeStore
+    @Environment(\.dismiss) var dismiss
+    var item: ClothingItem
+    
+    @State private var soldPriceText: String = ""
+    @State private var soldDate: Date = Date()
+    @State private var soldNotes: String = ""
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("出售价格") {
+                    HStack {
+                        Text("原价")
+                        Spacer()
+                        Text("¥\(String(format: "%.0f", item.price))")
+                            .foregroundColor(.secondary)
+                    }
+                    TextField("出售价格（可选）", text: $soldPriceText)
+                        .keyboardType(.decimalPad)
+                }
+                
+                Section("出售日期") {
+                    DatePicker("日期", selection: $soldDate, displayedComponents: .date)
+                }
+                
+                Section("备注（可选）") {
+                    TextEditor(text: $soldNotes)
+                        .frame(minHeight: 100)
+                }
+            }
+            .navigationTitle("标记为已出")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("确认") {
+                        let price = soldPriceText.isEmpty ? nil : Double(soldPriceText)
+                        let notes = soldNotes.isEmpty ? nil : soldNotes
+                        wardrobeStore.markAsSoldById(id: item.id, soldPrice: price, soldDate: soldDate, soldNotes: notes)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        dismiss()
+                    }
+                    .bold()
+                }
+            }
+        }
+    }
 }

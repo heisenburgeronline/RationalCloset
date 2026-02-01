@@ -180,10 +180,12 @@ struct AllItemRow: View {
 }
 
 struct ItemCardRow: View {
+    @EnvironmentObject var wardrobeStore: WardrobeStore
     var item: ClothingItem
     var isRecentlyWorn: Bool = false
     var onWear: () -> Void
     var isSold: Bool { item.status == .sold }
+    var isCold: Bool { item.isCold(threshold: wardrobeStore.coldThresholdDays) }
     
     // 详细尺寸部分代码复用
     var detailSizeString: String? {
@@ -213,6 +215,9 @@ struct ItemCardRow: View {
             
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
+                    if isCold {
+                        Text("❄️").font(.system(size: 14))
+                    }
                     if isSold {
                         HStack(spacing: 4) {
                             Text("¥\(String(format: "%.0f", item.price))").font(.system(size: 16, weight: .medium)).strikethrough().foregroundColor(.secondary)

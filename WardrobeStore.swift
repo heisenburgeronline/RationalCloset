@@ -4,13 +4,16 @@ import Foundation
 class WardrobeStore: ObservableObject {
     @Published var items: [ClothingItem] = []
     @Published var monthlyBudget: Double = 2000.0
+    @Published var coldThresholdDays: Int = 60
     
     private let storageKey: String = "MyWardrobeItems"
     private let budgetKey: String = "MonthlyBudget"
+    private let coldThresholdKey: String = "ColdThresholdDays"
     
     init() {
         loadData()
         loadBudget()
+        loadColdThreshold()
     }
     
     // MARK: - 基础 CRUD
@@ -37,11 +40,12 @@ class WardrobeStore: ObservableObject {
         }
     }
     
-    func markAsSoldById(id: UUID, soldPrice: Double?) {
+    func markAsSoldById(id: UUID, soldPrice: Double?, soldDate: Date?, soldNotes: String?) {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items[index].status = .sold
             items[index].soldPrice = soldPrice
-            items[index].soldDate = Date()
+            items[index].soldDate = soldDate ?? Date()
+            items[index].soldNotes = soldNotes
             saveData()
         }
     }
@@ -62,15 +66,12 @@ class WardrobeStore: ObservableObject {
     
     // MARK: - 查询与筛选
     func getColdPalaceItems() -> [ClothingItem] {
-        let calendar = Calendar.current
-        let now = Date()
-        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) ?? now
-        
-        return items.filter { item in
-            item.status == .active &&
-            item.wearCount == 0 &&
-            item.purchaseDate < thirtyDaysAgo
-        }.sorted { $0.purchaseDate < $1.purchaseDate }
+        return items.filter { $0.isCold(threshold: coldThresholdDays) }
+            .sorted { $0.purchaseDate < $1.purchaseDate }
+    }
+    
+    func getColdItemsCount() -> Int {
+        return items.filter { $0.isCold(threshold: coldThresholdDays) }.count
     }
     
     func getItemsForCategory(categoryName: String) -> [ClothingItem] {
@@ -166,9 +167,21 @@ class WardrobeStore: ObservableObject {
         let filtered = soldItems.filter { item in
             guard let soldDate = item.soldDate else { return false }
             switch period {
-            case .week: return calendar.isDate(soldDate, equalTo: now, toGranularity: .weekOfYear)
-            case .month: return calendar.isDate(soldDate, equalTo: now, toGranularity: .month)
-            case .year: return calendar.isDate(soldDate, equalTo: now, toGranularity: .year)
+            case .week:
+                if let daysAgo = calendar.date(byAdding: .day, value: -7, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
+            case .month:
+                if let daysAgo = calendar.date(byAdding: .day, value: -30, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
+            case .year:
+                if let daysAgo = calendar.date(byAdding: .day, value: -365, to: now) {
+                    return soldDate >= daysAgo
+                }
+                return false
             }
         }
         return filtered.compactMap { $0.soldPrice }.reduce(0.0, +)
@@ -204,9 +217,21 @@ class WardrobeStore: ObservableObject {
         let now = Date()
         return items.filter { item in
             switch period {
-            case .week: return calendar.isDate(item.date, equalTo: now, toGranularity: .weekOfYear)
-            case .month: return calendar.isDate(item.date, equalTo: now, toGranularity: .month)
-            case .year: return calendar.isDate(item.date, equalTo: now, toGranularity: .year)
+            case .week:
+                if let daysAgo = calendar.date(byAdding: .day, value: -7, to: now) {
+                    return item.date >= daysAgo
+                }
+                return false
+            case .month:
+                if let daysAgo = calendar.date(byAdding: .day, value: -30, to: now) {
+                    return item.date >= daysAgo
+                }
+                return false
+            case .year:
+                if let daysAgo = calendar.date(byAdding: .day, value: -365, to: now) {
+                    return item.date >= daysAgo
+                }
+                return false
             }
         }
     }
@@ -249,5 +274,22 @@ class WardrobeStore: ObservableObject {
     func updateBudget(newBudget: Double) {
         monthlyBudget = newBudget
         saveBudget()
+    }
+    
+    func updateColdThreshold(days: Int) {
+        coldThresholdDays = days
+        saveColdThreshold()
+    }
+    
+    func loadColdThreshold() {
+        let saved = UserDefaults.standard.integer(forKey: coldThresholdKey)
+        if saved > 0 {
+            coldThresholdDays = saved
+        }
+    }
+    
+    func saveColdThreshold() {
+        UserDefaults.standard.set(coldThresholdDays, forKey: coldThresholdKey)
+        UserDefaults.standard.synchronize()
     }
 }
