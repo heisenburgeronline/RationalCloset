@@ -256,7 +256,7 @@ struct RationalityAnalysisBlock: View {
                 // 双列指标
                 HStack(spacing: 10) {
                     VStack(spacing: 6) { HStack(spacing: 4) { Image(systemName: "bag.fill").font(.system(size: 12)).foregroundColor(.blue); Text("购买").font(.system(size: 11)).foregroundColor(.secondary) }; Text("\(itemCount)件").font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.blue) }.frame(maxWidth: .infinity).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(Color.blue.opacity(0.08)))
-                    VStack(spacing: 6) { HStack(spacing: 4) { Text("❄️").font(.system(size: 12)); Text("冷宫").font(.system(size: 11)).foregroundColor(.secondary) }; Text("\(wardrobeStore.getColdItemsCount())件").font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.cyan) }.frame(maxWidth: .infinity).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(Color.cyan.opacity(0.08)))
+                    VStack(spacing: 6) { HStack(spacing: 4) { Text("🕸️").font(.system(size: 12)); Text("吃灰").font(.system(size: 11)).foregroundColor(.secondary) }; Text("\(wardrobeStore.getColdItemsCount())件").font(.system(size: 18, weight: .bold, design: .rounded)).foregroundColor(.cyan) }.frame(maxWidth: .infinity).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(Color.cyan.opacity(0.08)))
                 }
                 
                 HStack(spacing: 10) {

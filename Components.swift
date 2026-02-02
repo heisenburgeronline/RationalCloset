@@ -197,6 +197,21 @@ struct ItemCardRow: View {
     var isSold: Bool { item.status == .sold }
     var isCold: Bool { item.isCold(threshold: wardrobeStore.coldThresholdDays) }
     
+    // Break-even check
+    var isBreakEven: Bool {
+        guard let targetCPW = item.targetCPW, targetCPW > 0 else { return false }
+        return item.costPerWear <= targetCPW
+    }
+    
+    // Time since last worn
+    var daysSinceLastWorn: String? {
+        guard let lastWornDate = item.wearHistory.max() else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: lastWornDate, to: Date()).day ?? 0
+        if days == 0 { return "今天" }
+        if days == 1 { return "昨天" }
+        return "\(days)天前"
+    }
+    
     // 详细尺寸部分代码复用
     var detailSizeString: String? {
         var parts: [String] = []
@@ -234,31 +249,73 @@ struct ItemCardRow: View {
             .scaleEffect(isRecentlyWorn ? 1.1 : 1.0)
             
             VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    if isCold {
-                        Text("❄️").font(.system(size: 14))
+                // SOLD items keep original layout
+                if isSold {
+                    HStack(spacing: 4) {
+                        Text("¥\(String(format: "%.0f", item.price))").font(.system(size: 16, weight: .medium)).strikethrough().foregroundColor(.secondary)
+                        Image(systemName: "arrow.right").font(.caption).foregroundColor(.orange)
+                        if let soldPrice = item.soldPrice { Text("¥\(String(format: "%.0f", soldPrice))").font(.system(size: 18, weight: .bold)).foregroundColor(.orange) }
+                        else { Text("已出").font(.system(size: 16)).foregroundColor(.orange) }
+                        Text("SOLD").font(.caption2.weight(.black)).foregroundColor(.white).padding(.horizontal, 5).padding(.vertical, 2).background(Color.red).cornerRadius(3)
                     }
-                    if isSold {
-                        HStack(spacing: 4) {
-                            Text("¥\(String(format: "%.0f", item.price))").font(.system(size: 16, weight: .medium)).strikethrough().foregroundColor(.secondary)
-                            Image(systemName: "arrow.right").font(.caption).foregroundColor(.orange)
-                            if let soldPrice = item.soldPrice { Text("¥\(String(format: "%.0f", soldPrice))").font(.system(size: 18, weight: .bold)).foregroundColor(.orange) }
-                            else { Text("已出").font(.system(size: 16)).foregroundColor(.orange) }
+                    if !item.platform.isEmpty { Text(item.platform).font(.caption).foregroundColor(.secondary) }
+                } else {
+                    // ✨ USAGE-FIRST LAYOUT (Primary Line - Bold, Prominent)
+                    HStack(spacing: 8) {
+                        Text("\(item.wearCount)次")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.primary)
+                        if let lastWorn = daysSinceLastWorn {
+                            Text("• \(lastWorn)")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        } else if item.wearCount == 0 {
+                            Text("• 未穿过")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.orange)
                         }
-                    } else {
-                        HStack(spacing: 8) {
-                            Text("¥\(String(format: "%.2f", item.price))").font(.system(size: 18, weight: .bold))
-                            Text("\(LocalizationHelper.cpwLabel): ¥\(String(format: "%.0f", item.costPerWear))").font(.caption2).foregroundColor(.purple).padding(.horizontal, 5).padding(.vertical, 2).background(Color.purple.opacity(0.1)).cornerRadius(4)
+                        // Status icons
+                        if isCold {
+                            Text("🕸️").font(.system(size: 14))
+                        }
+                        if isBreakEven {
+                            Text("🎉").font(.system(size: 14))
                         }
                     }
-                    if isSold { Text("SOLD").font(.caption2.weight(.black)).foregroundColor(.white).padding(.horizontal, 5).padding(.vertical, 2).background(Color.red).cornerRadius(3) }
+                    
+                    // Secondary Line - Gray, Smaller (Price & CPW)
+                    HStack(spacing: 6) {
+                        Text("¥\(String(format: "%.0f", item.price))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text("CPW: ¥\(String(format: "%.0f", item.costPerWear))")
+                            .font(.caption)
+                            .foregroundColor(.purple.opacity(0.8))
+                        if !item.platform.isEmpty {
+                            Text("• \(item.platform)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
-                if !item.platform.isEmpty { Text(item.platform).font(.caption).foregroundColor(.secondary) }
-                HStack {
-                    if !item.reason.isEmpty { Text(item.reason).font(.caption).foregroundColor(.secondary).lineLimit(1) }
-                    if item.wearCount > 0 { Text("穿\(item.wearCount)次").font(.caption).foregroundColor(.green) }
+                
+                // Additional info line
+                if !item.reason.isEmpty { 
+                    Text(item.reason)
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.8))
+                        .lineLimit(1) 
                 }
-                if let sizeStr = detailSizeString { Text(sizeStr).font(.caption2).foregroundColor(.blue.opacity(0.8)).lineLimit(1).minimumScaleFactor(0.7) }
+                if let sizeStr = detailSizeString { 
+                    Text(sizeStr)
+                        .font(.caption2)
+                        .foregroundColor(.blue.opacity(0.8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7) 
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 6) {

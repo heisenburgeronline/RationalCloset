@@ -39,7 +39,7 @@ struct MainDashboardView: View {
                             VStack(alignment: .leading, spacing: 15) {
                                 HStack(spacing: 8) { 
                                     Text("🕸️").font(.system(size: 20))
-                                    Text("衣橱冷宫 (Dusty Corner)").font(.title3).bold().foregroundColor(.primary)
+                                    Text("吃灰角落 (Dusty Corner)").font(.title3).bold().foregroundColor(.primary)
                                     Spacer()
                                     Text("\(coldPalaceItems.count)件").font(.caption).foregroundColor(.white).padding(.horizontal, 10).padding(.vertical, 4).background(Color.orange).cornerRadius(10)
                                     Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(.orange)
@@ -209,6 +209,22 @@ struct CategoryDetailView: View {
             return categoryItems.sorted { $0.wearCount > $1.wearCount }
         case .wearLeast:
             return categoryItems.sorted { $0.wearCount < $1.wearCount }
+        case .cpwLow:
+            // CPW Low to High (物尽其用) - treat wearCount=0 as infinity (goes last)
+            return categoryItems.sorted { item1, item2 in
+                if item1.wearCount == 0 && item2.wearCount == 0 { return false }
+                if item1.wearCount == 0 { return false }
+                if item2.wearCount == 0 { return true }
+                return item1.costPerWear < item2.costPerWear
+            }
+        case .cpwHigh:
+            // CPW High to Low (需多穿) - treat wearCount=0 as infinity (goes first)
+            return categoryItems.sorted { item1, item2 in
+                if item1.wearCount == 0 && item2.wearCount == 0 { return false }
+                if item1.wearCount == 0 { return true }
+                if item2.wearCount == 0 { return false }
+                return item1.costPerWear > item2.costPerWear
+            }
         }
     }
     
@@ -308,6 +324,22 @@ struct ColdPalaceListView: View {
             return items.sorted { $0.wearCount > $1.wearCount }
         case .wearLeast:
             return items.sorted { $0.wearCount < $1.wearCount }
+        case .cpwLow:
+            // CPW Low to High (物尽其用) - treat wearCount=0 as infinity (goes last)
+            return items.sorted { item1, item2 in
+                if item1.wearCount == 0 && item2.wearCount == 0 { return false }
+                if item1.wearCount == 0 { return false }
+                if item2.wearCount == 0 { return true }
+                return item1.costPerWear < item2.costPerWear
+            }
+        case .cpwHigh:
+            // CPW High to Low (需多穿) - treat wearCount=0 as infinity (goes first)
+            return items.sorted { item1, item2 in
+                if item1.wearCount == 0 && item2.wearCount == 0 { return false }
+                if item1.wearCount == 0 { return true }
+                if item2.wearCount == 0 { return false }
+                return item1.costPerWear > item2.costPerWear
+            }
         }
     }
     
@@ -337,7 +369,7 @@ struct ColdPalaceListView: View {
                 }.listStyle(.insetGrouped)
             }
         }
-        .navigationTitle("衣橱冷宫 🕸️")
+        .navigationTitle("吃灰角落 🕸️")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -404,7 +436,7 @@ struct GridItemCard: View {
                 }
                 
                 if isCold {
-                    Text("❄️")
+                    Text("🕸️")
                         .font(.system(size: 20))
                         .padding(4)
                         .background(Circle().fill(Color(.systemBackground)))
@@ -459,7 +491,7 @@ struct SettingsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("冷宫阈值")
+                            Text("吃灰阈值")
                                 .font(.headline)
                             Spacer()
                             Text("\(Int(coldThreshold)) 天")
@@ -470,13 +502,13 @@ struct SettingsView: View {
                         Slider(value: $coldThreshold, in: 7...180, step: 1)
                             .tint(.indigo)
                         
-                        Text("物品超过此天数未穿着，将被标记为❄️")
+                        Text("物品超过此天数未穿着，将被标记为🕸️")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 8)
                 } header: {
-                    Text("冷宫设置")
+                    Text("吃灰设置")
                 }
                 
                 Section {
@@ -536,7 +568,7 @@ struct SettingsView: View {
                             .foregroundColor(.green)
                     }
                     HStack {
-                        Text("冷宫物品")
+                        Text("吃灰物品")
                         Spacer()
                         Text("\(wardrobeStore.getColdItemsCount())")
                             .foregroundColor(.cyan)

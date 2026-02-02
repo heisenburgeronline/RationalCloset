@@ -19,6 +19,8 @@ enum SortOption: String, CaseIterable {
     case priceLow = "价格：低到高"
     case wearMost = "穿着次数：最多"
     case wearLeast = "穿着次数：最少"
+    case cpwLow = "CPW: 低到高 (物尽其用)"
+    case cpwHigh = "CPW: 高到低 (需多穿)"
 }
 
 struct CategorySpending: Identifiable {
