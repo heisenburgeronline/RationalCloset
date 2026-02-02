@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 // MARK: - Outfit Model
 struct GeneratedOutfit {
@@ -386,23 +387,37 @@ struct RandomOutfitView: View {
         
         isSavingToPhotos = true
         
-        // Render the outfit moodboard as an image
-        let renderer = ImageRenderer(content: OutfitMoodboardView(outfit: outfit))
-        renderer.scale = 3.0 // High resolution
-        
-        if let renderedImage = renderer.uiImage {
-            // Save to photo library
-            UIImageWriteToSavedPhotosAlbum(renderedImage, nil, nil, nil)
+        // FIX: Enforce Main Thread for Photo Saving (Critical - prevents abort_with_payload crash)
+        Task { @MainActor in
+            // 1. Request photo library permission
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
             
-            // Show success feedback
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            guard status == .authorized || status == .limited else {
+                isSavingToPhotos = false
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                print("❌ Photo library access denied")
+                return
+            }
+            
+            // 2. Create renderer on main thread
+            let renderer = ImageRenderer(content: OutfitMoodboardView(outfit: outfit))
+            renderer.scale = UIScreen.main.scale
+            
+            // 3. Render and save
+            if let renderedImage = renderer.uiImage {
+                UIImageWriteToSavedPhotosAlbum(renderedImage, nil, nil, nil)
+                
+                // Show success feedback
+                try? await Task.sleep(nanoseconds: 500_000_000)
                 isSavingToPhotos = false
                 showSaveAlert = true
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                print("✅ Outfit saved to Photos")
+            } else {
+                isSavingToPhotos = false
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                print("❌ Failed to render outfit image")
             }
-        } else {
-            isSavingToPhotos = false
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
     }
 }

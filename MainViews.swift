@@ -222,11 +222,11 @@ struct CategoryDetailView: View {
             if items.isEmpty { 
                 VStack(spacing: 20) { 
                     Image(systemName: categoryIcon).font(.system(size: 60)).foregroundColor(.gray.opacity(0.5))
-                    Text("还没有添加\(categoryName)").font(.title3).foregroundColor(.secondary)
+                    Text("这里空空如也").font(.title3).foregroundColor(.secondary)
                     NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { 
                         HStack { 
                             Image(systemName: "plus.circle.fill")
-                            Text("添加第一件\(categoryName)") 
+                            Text("添加你的第一件好物") 
                         }.font(.headline).foregroundColor(.white).padding(.horizontal, 30).padding(.vertical, 15).background(Color.accentColor).cornerRadius(12) 
                     } 
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground)) 
@@ -623,23 +623,31 @@ struct ExportShareSheet: View {
                 
                 Spacer()
                 
-                // Share Button
-                if let url = saveToTemporaryFile() {
-                    ShareLink(item: url) {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("分享备份文件")
+                // Data Export Section
+                VStack(spacing: 12) {
+                    if let url = saveToTemporaryFile() {
+                        ShareLink(item: url) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("导出记账数据 (JSON)")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing)
+                            )
+                            .cornerRadius(14)
                         }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(14)
+                        .padding(.horizontal)
+                        
+                        Text("此功能用于将您的衣物录入信息与消费记录导出为 JSON 文件，便于在电脑上进行二次统计或留存。此文件仅包含文本数据。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                 }
                 
                 Button {

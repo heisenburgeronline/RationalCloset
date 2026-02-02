@@ -400,6 +400,7 @@ struct ShareReportSheet: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.horizontalSizeClass) var sizeClass
     @State private var renderedImage: UIImage?
+    @State private var showSaveSuccessAlert = false
     
     var body: some View {
         NavigationStack {
@@ -414,6 +415,11 @@ struct ShareReportSheet: View {
             }
             .toolbar { ToolbarItem(placement: .navigationBarTrailing) { Button("完成") { dismiss() } } }
             .onAppear { renderImage() }
+            .alert("保存成功", isPresented: $showSaveSuccessAlert) {
+                Button("好的", role: .cancel) { }
+            } message: {
+                Text("理性战绩已保存到相册，快去分享吧！✨")
+            }
         }
     }
     
@@ -424,26 +430,37 @@ struct ShareReportSheet: View {
     }
     
     private func saveToPhotos() {
-        guard let image = renderedImage else { return }
-        
-        // FIX: Request photo library permission and ensure main actor
+        // FIX: Enforce Main Thread for Photo Saving (Critical - prevents abort_with_payload crash)
         Task { @MainActor in
+            // 1. Request photo library permission
             let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
             
-            switch status {
-            case .authorized, .limited:
-                // Save to photo library
-                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                print("✅ Image saved to Photos")
-            case .denied, .restricted:
+            guard status == .authorized || status == .limited else {
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
                 print("❌ Photo library access denied")
-            case .notDetermined:
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                print("⚠️ Photo library access not determined")
-            @unknown default:
+                return
+            }
+            
+            // 2. Create fresh renderer on main thread
+            let renderer = ImageRenderer(content: ShareableReportView(
+                moneySaved: moneySaved, 
+                totalRecovered: totalRecovered, 
+                totalSpent: totalSpent, 
+                netSpending: netSpending, 
+                itemCount: itemCount, 
+                period: period
+            ))
+            renderer.scale = UIScreen.main.scale
+            
+            // 3. Render and save
+            if let image = renderer.uiImage {
+                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                showSaveSuccessAlert = true
+                print("✅ Image saved to Photos")
+            } else {
                 UINotificationFeedbackGenerator().notificationOccurred(.error)
+                print("❌ Failed to render image")
             }
         }
     }
