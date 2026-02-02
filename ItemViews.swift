@@ -217,205 +217,340 @@ struct AddItemView: View {
     var isExpensive: Bool { Double(priceText).map { $0 > 1000 } ?? false }
     var isScenarioExpensive: Bool { categoryName == "场景功能" && (Double(priceText).map { $0 > 500 } ?? false) }
     
-    var body: some View {
-        Form {
-            Section {
-                VStack(spacing: 15) {
-                    HStack {
-                        Text("照片 (\(imagesData.count)/5)").font(.headline)
-                        Spacer()
-                        if imagesData.isEmpty {
-                            Text("至少添加1张").font(.caption).foregroundColor(.orange)
-                        }
-                    }
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(Array(imagesData.enumerated()), id: \.offset) { index, data in
-                                VStack(spacing: 8) {
-                                    ZStack(alignment: .topTrailing) {
-                                        if let uiImage = UIImage(data: data) {
-                                            Image(uiImage: uiImage)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 110, height: 110)
-                                                .cornerRadius(12)
-                                                .clipped()
-                                        }
-                                        Button {
-                                            imagesData.remove(at: index)
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 22))
-                                                .foregroundColor(.white)
-                                                .background(Circle().fill(Color.red))
-                                        }
-                                        .padding(4)
-                                    }
-                                    
-                                    // Background Removal Button
-                                    Button {
-                                        selectedImageIndexForBG = index
-                                        removeBackground(at: index)
-                                    } label: {
-                                        HStack(spacing: 4) {
-                                            if isProcessingBackground && selectedImageIndexForBG == index {
-                                                ProgressView()
-                                                    .progressViewStyle(CircularProgressViewStyle())
-                                                    .scaleEffect(0.7)
-                                            } else {
-                                                Text("✂️")
-                                                    .font(.system(size: 12))
-                                            }
-                                            Text("抠图")
-                                                .font(.system(size: 10, weight: .semibold))
-                                        }
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(
-                                            Capsule()
-                                                .fill(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing))
-                                        )
-                                    }
-                                    .disabled(isProcessingBackground)
-                                }
-                            }
-                            
-                            if imagesData.count < 5 {
-                                PhotosPicker(selection: $photoPickerItems, maxSelectionCount: 5 - imagesData.count, matching: .images) {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.gray.opacity(0.15))
-                                        .frame(width: 110, height: 110)
-                                        .overlay(
-                                            VStack(spacing: 5) {
-                                                Image(systemName: "plus.circle.fill")
-                                                    .font(.title2)
-                                                Text("添加照片").font(.caption)
-                                            }
-                                            .foregroundColor(.gray)
-                                        )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Section("价格信息") {
-                VStack(spacing: 12) {
-                    HStack { Text("实付价格"); Spacer(); TextField("0.00", text: $priceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100).onChange(of: priceText) { _, _ in updateWarnings() } }
-                    if showExpensiveWarning { HStack(spacing: 8) { Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 20)).foregroundColor(.orange); Text(currentWarningMessage).font(.system(size: 13)).foregroundColor(.orange).lineLimit(2).fixedSize(horizontal: false, vertical: true) }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.1))).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.3), lineWidth: 1)).transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity))) }
-                    if showScenarioWarning { HStack(spacing: 8) { Image(systemName: "theatermasks.fill").font(.system(size: 20)).foregroundColor(.purple); Text(RationalityCatMessages.scenarioWarning).font(.system(size: 13)).foregroundColor(.purple).lineLimit(2).fixedSize(horizontal: false, vertical: true) }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 10).fill(Color.purple.opacity(0.1))).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.purple.opacity(0.3), lineWidth: 1)).transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity))) }
-                    
-                    // Rational Cat v2.0: Price evaluation against adjusted average
-                    if showRationalCatEvaluation {
-                        HStack(spacing: 8) {
-                            Text(isGoodValue ? "😻" : (isLuxury ? "😾" : "🐱"))
-                                .font(.system(size: 24))
-                            Text(rationalCatMessage)
-                                .font(.system(size: 13))
-                                .foregroundColor(isGoodValue ? .green : (isLuxury ? .red : .secondary))
-                                .lineLimit(2)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(isGoodValue ? Color.green.opacity(0.1) : (isLuxury ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(isGoodValue ? Color.green.opacity(0.3) : (isLuxury ? Color.red.opacity(0.3) : Color.gray.opacity(0.3)), lineWidth: 1)
-                        )
-                        .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity)))
-                    }
-                    
-                    HStack { Text("原价"); Spacer(); TextField("可选", text: $originalPriceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-            }
-            Section("基本信息") { 
-                DatePicker("购买日期", selection: $purchaseDate, displayedComponents: .date)
-                HStack { Text("购买平台"); Spacer(); TextField("淘宝、京东...", text: $platformText).multilineTextAlignment(.trailing) }
-                if categoryName != "包包" {
-                    HStack { Text("尺码"); Spacer(); TextField("M / L / XL...", text: $sizeText).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-                if categoryName == "包包" {
-                    HStack { Text("品牌"); Spacer(); TextField("例: LV / Gucci...", text: $brandText).multilineTextAlignment(.trailing) }
-                }
-            }
-            
-            // 分类专属测量字段
-            if categoryName == "上装" {
-                Section("详细平铺尺寸 (选填, cm)") {
-                    HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-            }
-            
-            if categoryName == "下装" {
-                Section("详细平铺尺寸 (选填, cm)") {
-                    HStack { Text("裤长"); Spacer(); TextField("例: 105", text: $pantsLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("腰围"); Spacer(); TextField("例: 78", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("臀围"); Spacer(); TextField("例: 100", text: $hipsText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("脚阔"); Spacer(); TextField("例: 35", text: $legOpeningText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-            }
-            
-            if categoryName == "裙装" {
-                Section("详细平铺尺寸 (选填, cm)") {
-                    HStack { Text("后中长"); Spacer(); TextField("例: 95", text: $centerBackLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("前衣长"); Spacer(); TextField("例: 90", text: $frontLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("胸围"); Spacer(); TextField("例: 88", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("腰围"); Spacer(); TextField("例: 68", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("下摆"); Spacer(); TextField("例: 120", text: $hemText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-            }
-            
-            if categoryName == "包包" {
-                Section("包包信息 (选填)") {
-                    HStack { Text("类型"); Spacer(); TextField("例: Tote / 单肩包...", text: $bagTypeText).multilineTextAlignment(.trailing) }
-                }
-            }
-            
-            // 其他服装类别（外套、内衣、运动服、连衣裙、套装等）的通用测量字段
-            if isClothingCategory && categoryName != "上装" && categoryName != "下装" && categoryName != "裙装" {
-                Section("详细平铺尺寸 (选填, cm)") {
-                    HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                    HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
-                }
-            }
-            
-            Section("购买理由（必填）") { TextEditor(text: $reasonText).frame(minHeight: 100).overlay(alignment: .topLeading) { if reasonText.isEmpty { Text("为什么我一定要买这件衣服？").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
-            
-            Section {
+    // MARK: - Computed String Properties (to fix compiler timeout)
+    
+    private var photoCountText: String {
+        "照片 (\(imagesData.count)/5)"
+    }
+    
+    private var cpwGoalHeaderText: String {
+        "回本目标 (\(LocalizationHelper.cpwLabel))"
+    }
+    
+    private var cpwGoalFooterText: String {
+        let cpwLabel = LocalizationHelper.cpwLabel
+        return "设置一个目标 \(cpwLabel)，帮助你追踪这件衣物是否"回本"。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。"
+    }
+    
+    // MARK: - Extracted Sections (to fix compiler timeout)
+    
+    @ViewBuilder
+    private var imageSelectionSection: some View {
+        Section {
+            VStack(spacing: 15) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("回本目标 (\(LocalizationHelper.cpwLabel))")
-                            .font(.subheadline)
-                        Text("期望穿到多少钱/次才算值")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    Text(photoCountText).font(.headline)
                     Spacer()
-                    TextField("例: 10", text: $targetCPWText)
+                    if imagesData.isEmpty {
+                        Text("至少添加1张").font(.caption).foregroundColor(.orange)
+                    }
+                }
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(imagesData.enumerated()), id: \.offset) { index, data in
+                            ImageSelectionCell(
+                                imageData: data,
+                                index: index,
+                                isProcessing: isProcessingBackground && selectedImageIndexForBG == index,
+                                onDelete: { imagesData.remove(at: index) },
+                                onRemoveBackground: {
+                                    selectedImageIndexForBG = index
+                                    removeBackground(at: index)
+                                }
+                            )
+                            .disabled(isProcessingBackground)
+                        }
+                        
+                        if imagesData.count < 5 {
+                            PhotosPicker(selection: $photoPickerItems, maxSelectionCount: 5 - imagesData.count, matching: .images) {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.gray.opacity(0.15))
+                                    .frame(width: 110, height: 110)
+                                    .overlay(
+                                        VStack(spacing: 5) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.title2)
+                                            Text("添加照片").font(.caption)
+                                        }
+                                        .foregroundColor(.gray)
+                                    )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var priceInfoSection: some View {
+        Section("价格信息") {
+            VStack(spacing: 12) {
+                HStack { 
+                    Text("实付价格")
+                    Spacer()
+                    TextField("0.00", text: $priceText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
+                        .onChange(of: priceText) { _, _ in updateWarnings() }
+                }
+                
+                if showExpensiveWarning {
+                    warningCard(
+                        icon: "exclamationmark.bubble.fill",
+                        message: currentWarningMessage,
+                        color: .orange
+                    )
+                }
+                
+                if showScenarioWarning {
+                    warningCard(
+                        icon: "theatermasks.fill",
+                        message: RationalityCatMessages.scenarioWarning,
+                        color: .purple
+                    )
+                }
+                
+                // Rational Cat v2.0: Price evaluation against adjusted average
+                if showRationalCatEvaluation {
+                    rationalCatCard
+                }
+                
+                HStack {
+                    Text("原价")
+                    Spacer()
+                    TextField("可选", text: $originalPriceText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
                 }
-            } header: {
-                Label("回本目标 (选填)", systemImage: "target")
-            } footer: {
-                Text("设置一个目标 \(LocalizationHelper.cpwLabel)，帮助你追踪这件衣物是否“回本”。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。")
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var basicInfoSection: some View {
+        Section("基本信息") {
+            DatePicker("购买日期", selection: $purchaseDate, displayedComponents: .date)
+            HStack {
+                Text("购买平台")
+                Spacer()
+                TextField("淘宝、京东...", text: $platformText)
+                    .multilineTextAlignment(.trailing)
+            }
+            if categoryName != "包包" {
+                HStack {
+                    Text("尺码")
+                    Spacer()
+                    TextField("M / L / XL...", text: $sizeText)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
+                }
+            }
+            if categoryName == "包包" {
+                HStack {
+                    Text("品牌")
+                    Spacer()
+                    TextField("例: LV / Gucci...", text: $brandText)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var detailSizeSection: some View {
+        Group {
+            // 分类专属测量字段
+            if categoryName == "上装" {
+                topDetailSection
             }
             
-            Section("备注（选填）") { TextEditor(text: $notesText).frame(minHeight: 80).overlay(alignment: .topLeading) { if notesText.isEmpty { Text("其他备注信息...").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
+            if categoryName == "下装" {
+                bottomDetailSection
+            }
+            
+            if categoryName == "裙装" {
+                dressDetailSection
+            }
+            
+            if categoryName == "包包" {
+                bagDetailSection
+            }
+            
+            // 其他服装类别的通用测量字段
+            if isClothingCategory && categoryName != "上装" && categoryName != "下装" && categoryName != "裙装" {
+                generalClothingDetailSection
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var reasonSection: some View {
+        Section("购买理由（必填）") {
+            TextEditor(text: $reasonText)
+                .frame(minHeight: 100)
+                .overlay(alignment: .topLeading) {
+                    if reasonText.isEmpty {
+                        Text("为什么我一定要买这件衣服？")
+                            .foregroundColor(.gray.opacity(0.5))
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .allowsHitTesting(false)
+                    }
+                }
+        }
+    }
+    
+    @ViewBuilder
+    private var cpwGoalSection: some View {
+        Section {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(cpwGoalHeaderText)
+                        .font(.subheadline)
+                    Text("期望穿到多少钱/次才算值")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                TextField("例: 10", text: $targetCPWText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 100)
+            }
+        } header: {
+            Label("回本目标 (选填)", systemImage: "target")
+        } footer: {
+            Text(cpwGoalFooterText)
+        }
+    }
+    
+    @ViewBuilder
+    private var notesSection: some View {
+        Section("备注（选填）") {
+            TextEditor(text: $notesText)
+                .frame(minHeight: 80)
+                .overlay(alignment: .topLeading) {
+                    if notesText.isEmpty {
+                        Text("其他备注信息...")
+                            .foregroundColor(.gray.opacity(0.5))
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .allowsHitTesting(false)
+                    }
+                }
+        }
+    }
+    
+    // MARK: - Detail Size Sub-Sections
+    
+    @ViewBuilder
+    private var topDetailSection: some View {
+        Section("详细平铺尺寸 (选填, cm)") {
+            HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+        }
+    }
+    
+    @ViewBuilder
+    private var bottomDetailSection: some View {
+        Section("详细平铺尺寸 (选填, cm)") {
+            HStack { Text("裤长"); Spacer(); TextField("例: 105", text: $pantsLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("腰围"); Spacer(); TextField("例: 78", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("臀围"); Spacer(); TextField("例: 100", text: $hipsText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("脚阔"); Spacer(); TextField("例: 35", text: $legOpeningText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+        }
+    }
+    
+    @ViewBuilder
+    private var dressDetailSection: some View {
+        Section("详细平铺尺寸 (选填, cm)") {
+            HStack { Text("后中长"); Spacer(); TextField("例: 95", text: $centerBackLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("前衣长"); Spacer(); TextField("例: 90", text: $frontLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("胸围"); Spacer(); TextField("例: 88", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("腰围"); Spacer(); TextField("例: 68", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("下摆"); Spacer(); TextField("例: 120", text: $hemText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+        }
+    }
+    
+    @ViewBuilder
+    private var bagDetailSection: some View {
+        Section("包包信息 (选填)") {
+            HStack { Text("类型"); Spacer(); TextField("例: Tote / 单肩包...", text: $bagTypeText).multilineTextAlignment(.trailing) }
+        }
+    }
+    
+    @ViewBuilder
+    private var generalClothingDetailSection: some View {
+        Section("详细平铺尺寸 (选填, cm)") {
+            HStack { Text("肩宽"); Spacer(); TextField("例: 48", text: $shoulderWidthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("胸围"); Spacer(); TextField("例: 110", text: $chestCircumferenceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("袖长"); Spacer(); TextField("例: 62", text: $sleeveLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("衣长"); Spacer(); TextField("例: 72", text: $clothingLengthText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+            HStack { Text("腰围"); Spacer(); TextField("例: 90", text: $waistlineText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
+        }
+    }
+    
+    // MARK: - Helper Views for Warnings
+    
+    @ViewBuilder
+    private func warningCard(icon: String, message: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(color)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundColor(color)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(color.opacity(0.3), lineWidth: 1))
+        .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity)))
+    }
+    
+    @ViewBuilder
+    private var rationalCatCard: some View {
+        HStack(spacing: 8) {
+            Text(isGoodValue ? "😻" : (isLuxury ? "😾" : "🐱"))
+                .font(.system(size: 24))
+            Text(rationalCatMessage)
+                .font(.system(size: 13))
+                .foregroundColor(isGoodValue ? .green : (isLuxury ? .red : .secondary))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isGoodValue ? Color.green.opacity(0.1) : (isLuxury ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isGoodValue ? Color.green.opacity(0.3) : (isLuxury ? Color.red.opacity(0.3) : Color.gray.opacity(0.3)), lineWidth: 1)
+        )
+        .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity)))
+    }
+    
+    var body: some View {
+        Form {
+            imageSelectionSection
+            priceInfoSection
+            basicInfoSection
+            detailSizeSection
+            reasonSection
+            cpwGoalSection
+            notesSection
         }
         .navigationTitle("记录 \(categoryName)").navigationBarTitleDisplayMode(.inline)
         .toolbar { 
@@ -628,6 +763,60 @@ struct AddItemView: View {
         } else {
             // Fallback for iOS 16 - return original image
             return image
+        }
+    }
+}
+
+// MARK: - Image Selection Cell (extracted to reduce compiler complexity)
+struct ImageSelectionCell: View {
+    let imageData: Data
+    let index: Int
+    let isProcessing: Bool
+    let onDelete: () -> Void
+    let onRemoveBackground: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                if let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 110, height: 110)
+                        .cornerRadius(12)
+                        .clipped()
+                }
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                        .background(Circle().fill(Color.red))
+                }
+                .padding(4)
+            }
+            
+            // Background Removal Button
+            Button(action: onRemoveBackground) {
+                HStack(spacing: 4) {
+                    if isProcessing {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.7)
+                    } else {
+                        Text("✂️")
+                            .font(.system(size: 12))
+                    }
+                    Text("抠图")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing))
+                )
+            }
         }
     }
 }
