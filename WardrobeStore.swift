@@ -492,6 +492,47 @@ class WardrobeStore: ObservableObject {
         UserDefaults.standard.synchronize()
     }
     
+    // MARK: - Rational Cat Logic v2.0
+    
+    /// Categories excluded from average price calculation
+    private static let excludedCategoriesForAverage = ["内衣居家", "配饰"]
+    
+    /// Calculate the adjusted average price, excluding underwear/home and accessories
+    /// Used for "Rational Cat" purchase evaluation
+    func calculateAdjustedAveragePrice() -> Double {
+        let includedItems = items.filter { item in
+            item.status == .active && 
+            !WardrobeStore.excludedCategoriesForAverage.contains(item.category)
+        }
+        
+        guard !includedItems.isEmpty else { return 0 }
+        
+        let totalPrice = includedItems.reduce(0.0) { $0 + $1.price }
+        return totalPrice / Double(includedItems.count)
+    }
+    
+    /// Evaluate a price against the adjusted average for Rational Cat comments
+    /// Returns: (isGoodValue: Bool, isLuxury: Bool, message: String)
+    func evaluatePriceForRationalCat(price: Double) -> (isGoodValue: Bool, isLuxury: Bool, message: String) {
+        let adjustedAverage = calculateAdjustedAveragePrice()
+        
+        // If no items yet, can't compare
+        guard adjustedAverage > 0 else {
+            return (false, false, "这是你的第一件衣物，开启理性衣橱之旅！🐱")
+        }
+        
+        if price < adjustedAverage {
+            // Good value: below average
+            return (true, false, "理性小猫在呼噜噜！这件性价比超高，比你的平均单价还低！🐱✨")
+        } else if price > adjustedAverage * 2 {
+            // Luxury: more than 2x average
+            return (false, true, "理性小猫正在审判你... 这件是你平均价格的2倍以上，真的需要吗？🐱⚠️")
+        } else {
+            // Normal range
+            return (false, false, "")
+        }
+    }
+    
     // MARK: - Data Export / Backup
     struct BackupData: Codable {
         var items: [ClothingItem]

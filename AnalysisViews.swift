@@ -20,6 +20,9 @@ struct RationalityAnalysisBlock: View {
     // Monthly Title
     var monthlyTitle: MonthlyTitle { wardrobeStore.calculateMonthlyTitle() }
     
+    // Rational Cat v2.0: Adjusted average price (excluding underwear/home and accessories)
+    var adjustedAveragePrice: Double { wardrobeStore.calculateAdjustedAveragePrice() }
+    
     // Recycle count for current period
     var recycleCount: Int {
         let calendar = Calendar.current
@@ -211,6 +214,30 @@ struct RationalityAnalysisBlock: View {
                         }.frame(maxWidth: .infinity).padding(.vertical, 10).background(RoundedRectangle(cornerRadius: 8).fill(netSpendingColor.opacity(0.08)))
                     }
                 }.padding(14).background(RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.08)))
+                
+                // Rational Cat v2.0: Adjusted Average Reference
+                if adjustedAveragePrice > 0 {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Text("🐱")
+                                .font(.system(size: 14))
+                            Text("理性参考价")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text("¥\(String(format: "%.0f", adjustedAveragePrice))/件")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundColor(.indigo)
+                        }
+                        Text("基于你的衣橱平均单价（不含内衣配饰），低于此价≈好价，高于2倍≈奢侈")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.indigo.opacity(0.05)))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.indigo.opacity(0.2), lineWidth: 1))
+                }
                 
                 // 双列指标
                 HStack(spacing: 10) {

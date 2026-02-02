@@ -199,6 +199,7 @@ struct AddItemView: View {
     @State private var purchaseDate = Date()
     @State private var priceText = ""; @State private var originalPriceText = ""; @State private var platformText = ""; @State private var reasonText = ""; @State private var sizeText = ""; @State private var notesText = ""
     @State private var showExpensiveWarning = false; @State private var showScenarioWarning = false; @State private var currentWarningMessage = ""
+    @State private var showRationalCatEvaluation = false; @State private var rationalCatMessage = ""; @State private var isGoodValue = false; @State private var isLuxury = false
     @State private var shoulderWidthText = ""; @State private var chestCircumferenceText = ""; @State private var sleeveLengthText = ""; @State private var clothingLengthText = ""; @State private var waistlineText = ""
     @State private var pantsLengthText = ""; @State private var hipsText = ""; @State private var legOpeningText = ""
     @State private var centerBackLengthText = ""; @State private var frontLengthText = ""; @State private var hemText = ""
@@ -305,6 +306,31 @@ struct AddItemView: View {
                     HStack { Text("实付价格"); Spacer(); TextField("0.00", text: $priceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100).onChange(of: priceText) { _, _ in updateWarnings() } }
                     if showExpensiveWarning { HStack(spacing: 8) { Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 20)).foregroundColor(.orange); Text(currentWarningMessage).font(.system(size: 13)).foregroundColor(.orange).lineLimit(2).fixedSize(horizontal: false, vertical: true) }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 10).fill(Color.orange.opacity(0.1))).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.3), lineWidth: 1)).transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity))) }
                     if showScenarioWarning { HStack(spacing: 8) { Image(systemName: "theatermasks.fill").font(.system(size: 20)).foregroundColor(.purple); Text(RationalityCatMessages.scenarioWarning).font(.system(size: 13)).foregroundColor(.purple).lineLimit(2).fixedSize(horizontal: false, vertical: true) }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(RoundedRectangle(cornerRadius: 10).fill(Color.purple.opacity(0.1))).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.purple.opacity(0.3), lineWidth: 1)).transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity))) }
+                    
+                    // Rational Cat v2.0: Price evaluation against adjusted average
+                    if showRationalCatEvaluation {
+                        HStack(spacing: 8) {
+                            Text(isGoodValue ? "😻" : (isLuxury ? "😾" : "🐱"))
+                                .font(.system(size: 24))
+                            Text(rationalCatMessage)
+                                .font(.system(size: 13))
+                                .foregroundColor(isGoodValue ? .green : (isLuxury ? .red : .secondary))
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(isGoodValue ? Color.green.opacity(0.1) : (isLuxury ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(isGoodValue ? Color.green.opacity(0.3) : (isLuxury ? Color.red.opacity(0.3) : Color.gray.opacity(0.3)), lineWidth: 1)
+                        )
+                        .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity)))
+                    }
+                    
                     HStack { Text("原价"); Spacer(); TextField("可选", text: $originalPriceText).keyboardType(.decimalPad).multilineTextAlignment(.trailing).frame(width: 100) }
                 }
             }
@@ -386,7 +412,7 @@ struct AddItemView: View {
             } header: {
                 Label("回本目标 (选填)", systemImage: "target")
             } footer: {
-                Text("设置一个目标\(LocalizationHelper.cpwLabel)，帮助你追踪这件衣物是否"回本"。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。")
+                Text("设置一个目标 \(LocalizationHelper.cpwLabel)，帮助你追踪这件衣物是否“回本”。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。")
             }
             
             Section("备注（选填）") { TextEditor(text: $notesText).frame(minHeight: 80).overlay(alignment: .topLeading) { if notesText.isEmpty { Text("其他备注信息...").foregroundColor(.gray.opacity(0.5)).padding(.top, 8).padding(.leading, 4).allowsHitTesting(false) } } }
@@ -408,15 +434,44 @@ struct AddItemView: View {
         .onAppear { currentWarningMessage = RationalityCatMessages.randomWarning() }
     }
     
-    private func updateWarnings() { if isExpensive && !showExpensiveWarning { currentWarningMessage = RationalityCatMessages.randomWarning() }; withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { showExpensiveWarning = isExpensive; showScenarioWarning = isScenarioExpensive } }
+    private func updateWarnings() { 
+        if isExpensive && !showExpensiveWarning { currentWarningMessage = RationalityCatMessages.randomWarning() }
+        
+        // Rational Cat v2.0: Evaluate price against adjusted average
+        if let price = Double(priceText), price > 0 {
+            let evaluation = store.evaluatePriceForRationalCat(price: price)
+            isGoodValue = evaluation.isGoodValue
+            isLuxury = evaluation.isLuxury
+            rationalCatMessage = evaluation.message
+            showRationalCatEvaluation = !evaluation.message.isEmpty
+        } else {
+            showRationalCatEvaluation = false
+            isGoodValue = false
+            isLuxury = false
+            rationalCatMessage = ""
+        }
+        
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { 
+            showExpensiveWarning = isExpensive
+            showScenarioWarning = isScenarioExpensive 
+        } 
+    }
     
     private func loadPhotos(from items: [PhotosPickerItem]) {
         guard !items.isEmpty else { return }
         Task {
             var loadedData: [Data] = []
             for item in items {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    loadedData.append(data)
+                // FIX: Load as UIImage first to ensure full quality, then convert to Data
+                // This ensures we get the highest quality image for background removal
+                if let imageData = try? await item.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: imageData) {
+                    // Re-encode as high quality JPEG to ensure consistent format
+                    if let highQualityData = uiImage.jpegData(compressionQuality: 0.95) {
+                        loadedData.append(highQualityData)
+                    } else {
+                        loadedData.append(imageData)
+                    }
                 }
             }
             await MainActor.run {
@@ -477,8 +532,15 @@ struct AddItemView: View {
     
     // MARK: - AI Background Removal
     private func removeBackground(at index: Int) {
-        guard index < imagesData.count,
-              let inputImage = UIImage(data: imagesData[index]) else { return }
+        guard index < imagesData.count else { return }
+        
+        // FIX: Ensure we load a full-quality UIImage from the data
+        guard let inputImage = UIImage(data: imagesData[index]),
+              inputImage.size.width > 0 && inputImage.size.height > 0 else {
+            print("❌ Failed to create valid UIImage from data at index \(index)")
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            return
+        }
         
         isProcessingBackground = true
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -488,9 +550,14 @@ struct AddItemView: View {
                 let processedImage = try await processBackgroundRemoval(image: inputImage)
                 
                 await MainActor.run {
+                    // Use PNG for transparency support after background removal
                     if let pngData = processedImage.pngData() {
                         imagesData[index] = pngData
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        print("✅ Background removed successfully")
+                    } else {
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                        print("❌ Failed to encode processed image as PNG")
                     }
                     isProcessingBackground = false
                     selectedImageIndexForBG = nil
@@ -500,6 +567,7 @@ struct AddItemView: View {
                     isProcessingBackground = false
                     selectedImageIndexForBG = nil
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    print("❌ Background removal failed: \(error.localizedDescription)")
                 }
             }
         }

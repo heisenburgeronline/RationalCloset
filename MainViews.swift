@@ -376,7 +376,8 @@ struct GridItemCard: View {
     var body: some View {
         VStack(spacing: 8) {
             ZStack(alignment: .topLeading) {
-                if let firstImageData = item.imagesData.first, let uiImage = UIImage(data: firstImageData) {
+                // FIX: Use item.firstImage which loads from filesystem via ImageManager
+                if let uiImage = item.firstImage {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()

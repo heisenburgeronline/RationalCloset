@@ -189,50 +189,88 @@ struct CalendarDayCell: View {
     }
     
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             // Day Number
             Text(dayNumber)
-                .font(.system(size: 16, weight: isToday ? .bold : .medium))
+                .font(.system(size: 14, weight: isToday ? .bold : .medium))
                 .foregroundColor(isToday ? .white : (hasOutfit ? .primary : .secondary))
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
                 .background(
                     Circle()
                         .fill(isToday ? Color.indigo : Color.clear)
                 )
             
-            // Thumbnail or Indicator
+            // Thumbnail or Indicator - FIX: Handle multiple items without overlap
             if hasOutfit {
-                if let firstItem = items.first,
-                   let uiImage = firstItem.firstImage {
-                    // Show tiny thumbnail
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(
+                ZStack(alignment: .bottomTrailing) {
+                    if items.count == 1 {
+                        // Single item: show full thumbnail
+                        if let uiImage = items.first?.firstImage {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.green.opacity(0.6), lineWidth: 1.5)
+                                )
+                        } else {
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.green.opacity(0.6), lineWidth: 2)
-                        )
-                } else {
-                    // Show indicator dot
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 6, height: 6)
-                        .padding(.top, 4)
+                                .fill(Color.green.opacity(0.2))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Image(systemName: "tshirt.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.green)
+                                )
+                        }
+                    } else {
+                        // Multiple items: show 2x2 mini grid with first item + badge
+                        if let uiImage = items.first?.firstImage {
+                            Image(uiImage: uiImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.green.opacity(0.6), lineWidth: 1.5)
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.green.opacity(0.2))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Image(systemName: "tshirt.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.green)
+                                )
+                        }
+                    }
+                    
+                    // Badge for multiple items - positioned in bottom-right corner
+                    if items.count > 1 {
+                        Text("+\(items.count - 1)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 1)
+                            .background(
+                                Capsule()
+                                    .fill(Color.orange)
+                            )
+                            .offset(x: 4, y: 4)
+                    }
                 }
-                
-                // Item count badge
-                if items.count > 1 {
-                    Text("\(items.count)")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(2)
-                        .background(Circle().fill(Color.orange))
-                }
+                .frame(width: 36, height: 36)
+            } else {
+                // No outfit - empty space
+                Color.clear
+                    .frame(width: 32, height: 32)
             }
             
-            Spacer()
+            Spacer(minLength: 0)
         }
         .frame(height: 70)
         .frame(maxWidth: .infinity)
