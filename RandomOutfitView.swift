@@ -517,8 +517,7 @@ struct OutfitItemCard: View {
     var body: some View {
         VStack(spacing: 8) {
             // Image
-            if let firstImageData = item.imagesData.first,
-               let uiImage = UIImage(data: firstImageData) {
+            if let uiImage = item.firstImage {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()

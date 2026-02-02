@@ -23,6 +23,50 @@ class WardrobeStore: ObservableObject {
         loadData()
         loadBudget()
         loadColdThreshold()
+        migrateImagesToFilesystem()
+    }
+    
+    // MARK: - Migration: Convert Data to Filesystem
+    
+    /// Migrates existing image Data to filesystem (one-time migration)
+    private func migrateImagesToFilesystem() {
+        var needsSave = false
+        
+        for index in items.indices {
+            var item = items[index]
+            
+            // Skip if already migrated (has filenames) or no legacy data
+            if !item.imageFilenames.isEmpty || item.imagesData.isEmpty {
+                continue
+            }
+            
+            print("🔄 Migrating images for item: \(item.category) (\(item.imagesData.count) images)")
+            
+            var migratedFilenames: [String] = []
+            
+            for imageData in item.imagesData {
+                if let filename = ImageManager.shared.migrateDataToFile(imageData) {
+                    migratedFilenames.append(filename)
+                }
+            }
+            
+            // Update item with filenames and clear old data
+            item.imageFilenames = migratedFilenames
+            item.imagesData = [] // Clear to free memory
+            items[index] = item
+            needsSave = true
+            
+            print("✅ Migrated \(migratedFilenames.count) images")
+        }
+        
+        if needsSave {
+            saveData()
+            print("✅ Migration complete. Saved updated data.")
+            
+            // Print storage info
+            let info = ImageManager.shared.getStorageInfo()
+            print("📊 Storage: \(info.count) images, \(info.totalSizeKB)KB total")
+        }
     }
     
     // MARK: - 基础 CRUD
@@ -32,11 +76,21 @@ class WardrobeStore: ObservableObject {
     }
     
     func deleteItem(item: ClothingItem) {
+        // Delete associated images from filesystem
+        for filename in item.imageFilenames {
+            ImageManager.shared.deleteImage(filename: filename)
+        }
         items.removeAll { $0.id == item.id }
         saveData()
     }
     
     func deleteItemById(id: UUID) {
+        // Find item and delete images
+        if let item = items.first(where: { $0.id == id }) {
+            for filename in item.imageFilenames {
+                ImageManager.shared.deleteImage(filename: filename)
+            }
+        }
         items.removeAll { $0.id == id }
         saveData()
     }

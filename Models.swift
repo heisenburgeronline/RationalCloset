@@ -52,6 +52,10 @@ struct ClothingItem: Identifiable, Codable {
     
     var wearDates: [Date] = []
     
+    // Image storage - NEW: Store filenames instead of Data
+    var imageFilenames: [String] = []
+    
+    // DEPRECATED: Legacy field for migration only
     var imagesData: [Data] = []
     
     var notes: String?                // 通用备注
@@ -84,7 +88,7 @@ struct ClothingItem: Identifiable, Codable {
     var lastWornDate: Date? { wearDates.max() }
     var purchaseDate: Date { date }
     
-    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], imagesData: [Data] = [], notes: String? = nil, soldNotes: String? = nil, targetCPW: Double? = nil, shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLengthString: String? = nil, waistline: String? = nil, pantsLength: String? = nil, hips: String? = nil, legOpening: String? = nil, centerBackLength: String? = nil, frontLength: String? = nil, hem: String? = nil, bagType: String? = nil, brand: String? = nil) {
+    init(id: UUID = UUID(), category: String, price: Double, originalPrice: Double = 0, soldPrice: Double? = nil, soldDate: Date? = nil, date: Date = Date(), platform: String = "", reason: String = "", size: String = "", status: ItemStatus = .active, wearDates: [Date] = [], imageFilenames: [String] = [], imagesData: [Data] = [], notes: String? = nil, soldNotes: String? = nil, targetCPW: Double? = nil, shoulderWidth: String? = nil, chestCircumference: String? = nil, sleeveLength: String? = nil, clothingLengthString: String? = nil, waistline: String? = nil, pantsLength: String? = nil, hips: String? = nil, legOpening: String? = nil, centerBackLength: String? = nil, frontLength: String? = nil, hem: String? = nil, bagType: String? = nil, brand: String? = nil) {
         self.id = id
         self.category = category
         self.price = price
@@ -97,6 +101,7 @@ struct ClothingItem: Identifiable, Codable {
         self.size = size
         self.status = status
         self.wearDates = wearDates
+        self.imageFilenames = imageFilenames
         self.imagesData = imagesData
         self.notes = notes
         self.soldNotes = soldNotes

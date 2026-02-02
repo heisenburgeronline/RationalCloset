@@ -31,10 +31,10 @@ struct ItemDetailView: View {
         ScrollView {
             VStack(spacing: 0) {
                 ZStack(alignment: .topTrailing) {
-                    if !item.imagesData.isEmpty {
+                    if item.hasImages {
                         TabView {
-                            ForEach(Array(item.imagesData.enumerated()), id: \.offset) { index, data in
-                                if let uiImage = UIImage(data: data) {
+                            ForEach(Array(item.imageFilenames.enumerated()), id: \.offset) { index, filename in
+                                if let uiImage = ImageManager.shared.loadImage(filename: filename) {
                                     Image(uiImage: uiImage)
                                         .resizable()
                                         .scaledToFill()
@@ -429,6 +429,16 @@ struct AddItemView: View {
     private func saveItem() { 
         guard let priceValue = Double(priceText) else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        
+        // NEW: Save images to filesystem and get filenames
+        var imageFilenames: [String] = []
+        for imageData in imagesData {
+            if let uiImage = UIImage(data: imageData),
+               let filename = ImageManager.shared.saveImage(uiImage) {
+                imageFilenames.append(filename)
+            }
+        }
+        
         let newItem = ClothingItem(
             id: UUID(), 
             category: categoryName, 
@@ -442,7 +452,8 @@ struct AddItemView: View {
             size: sizeText, 
             status: .active, 
             wearDates: [], 
-            imagesData: imagesData, 
+            imageFilenames: imageFilenames,  // NEW: Use filenames
+            imagesData: [],                   // NEW: Empty array (no longer storing Data)
             notes: notesText.isEmpty ? nil : notesText, 
             soldNotes: nil,
             targetCPW: targetCPWText.isEmpty ? nil : Double(targetCPWText),

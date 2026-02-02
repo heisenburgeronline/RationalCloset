@@ -37,7 +37,7 @@ struct ColdPalaceItemCard: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(alignment: .leading, spacing: 8) {
-                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
+                if let uiImage = item.firstImage {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 140, height: 140).clipped().cornerRadius(12)
                 } else {
                     RoundedRectangle(cornerRadius: 12).fill(Color.gray.opacity(0.3)).frame(width: 140, height: 140)
@@ -93,7 +93,7 @@ struct RecentItemCardView: View {
     var item: ClothingItem
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
+            if let uiImage = item.firstImage {
                 Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 130, height: 130).clipped().cornerRadius(10)
             } else {
                 RoundedRectangle(cornerRadius: 10).fill(Color.gray.opacity(0.2)).frame(width: 130, height: 130)
@@ -138,7 +138,7 @@ struct AllItemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
+                if let uiImage = item.firstImage {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 60, height: 60).cornerRadius(10).clipped()
                         .id("\(item.id)-list-image")
                 } else {
@@ -219,7 +219,7 @@ struct ItemCardRow: View {
     var body: some View {
         HStack(spacing: 15) {
             ZStack {
-                if let data = item.imagesData.first, let uiImage = UIImage(data: data) {
+                if let uiImage = item.firstImage {
                     Image(uiImage: uiImage).resizable().scaledToFill().frame(width: 70, height: 70).cornerRadius(10).clipped()
                         .id("\(item.id)-category-image")
                 } else {
