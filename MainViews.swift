@@ -451,6 +451,7 @@ struct SettingsView: View {
     @State private var coldThreshold: Double = 60
     @State private var showExportSuccess = false
     @State private var exportedData: String?
+    @State private var showEmptyDataAlert = false
     
     var body: some View {
         NavigationStack {
@@ -501,10 +502,10 @@ struct SettingsView: View {
                                 .font(.system(size: 20))
                                 .foregroundColor(.indigo)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("导出备份")
+                                Text("导出记账数据 (JSON)")
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.primary)
-                                Text("将所有数据导出为JSON文件")
+                                Text("导出衣物信息与消费记录")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -518,7 +519,7 @@ struct SettingsView: View {
                 } header: {
                     Label("数据管理", systemImage: "externaldrive")
                 } footer: {
-                    Text("导出的数据包含所有衣物记录、预算设置和穿着历史。可用于备份或迁移到其他设备。")
+                    Text("此功能用于将您的衣物录入信息与消费记录导出为 JSON 文件，便于在电脑上进行二次统计。此文件仅包含文本数据。")
                 }
                 
                 Section {
@@ -564,10 +565,23 @@ struct SettingsView: View {
             )) { exportData in
                 ExportShareSheet(data: exportData)
             }
+            .alert("暂无数据", isPresented: $showEmptyDataAlert) {
+                Button("好的", role: .cancel) { }
+            } message: {
+                Text("您的衣橱还是空的，添加一些衣物后再来导出吧！")
+            }
         }
     }
     
     private func exportData() {
+        // Validate: Check if there's any data to export
+        if wardrobeStore.items.isEmpty {
+            showEmptyDataAlert = true
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
+        
+        // Proceed with export
         if let jsonString = wardrobeStore.exportDataAsJSON() {
             exportedData = jsonString
             UINotificationFeedbackGenerator().notificationOccurred(.success)
