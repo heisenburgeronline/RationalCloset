@@ -232,6 +232,48 @@ struct AddItemView: View {
         return "设置一个目标 \(cpwLabel)，帮助你追踪这件衣物是否"回本"。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。"
     }
     
+    // MARK: - Rational Cat Card Style Properties (to fix compiler timeout)
+    
+    private var catIcon: String {
+        if isGoodValue {
+            return "😻"
+        } else if isLuxury {
+            return "😾"
+        } else {
+            return "🐱"
+        }
+    }
+    
+    private var catThemeColor: Color {
+        if isGoodValue {
+            return .green
+        } else if isLuxury {
+            return .red
+        } else {
+            return .secondary
+        }
+    }
+    
+    private var catBackgroundColor: Color {
+        if isGoodValue {
+            return Color.green.opacity(0.1)
+        } else if isLuxury {
+            return Color.red.opacity(0.1)
+        } else {
+            return Color.gray.opacity(0.1)
+        }
+    }
+    
+    private var catBorderColor: Color {
+        if isGoodValue {
+            return Color.green.opacity(0.3)
+        } else if isLuxury {
+            return Color.red.opacity(0.3)
+        } else {
+            return Color.gray.opacity(0.3)
+        }
+    }
+    
     // MARK: - Extracted Sections (to fix compiler timeout)
     
     @ViewBuilder
@@ -521,11 +563,11 @@ struct AddItemView: View {
     @ViewBuilder
     private var rationalCatCard: some View {
         HStack(spacing: 8) {
-            Text(isGoodValue ? "😻" : (isLuxury ? "😾" : "🐱"))
+            Text(catIcon)
                 .font(.system(size: 24))
             Text(rationalCatMessage)
                 .font(.system(size: 13))
-                .foregroundColor(isGoodValue ? .green : (isLuxury ? .red : .secondary))
+                .foregroundColor(catThemeColor)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -533,11 +575,11 @@ struct AddItemView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(isGoodValue ? Color.green.opacity(0.1) : (isLuxury ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)))
+                .fill(catBackgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(isGoodValue ? Color.green.opacity(0.3) : (isLuxury ? Color.red.opacity(0.3) : Color.gray.opacity(0.3)), lineWidth: 1)
+                .stroke(catBorderColor, lineWidth: 1)
         )
         .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .scale(scale: 0.8).combined(with: .opacity)))
     }
@@ -687,9 +729,13 @@ struct AddItemView: View {
                 await MainActor.run {
                     // Use PNG for transparency support after background removal
                     if let pngData = processedImage.pngData() {
-                        imagesData[index] = pngData
+                        // FIX: Create new array to trigger SwiftUI @State update
+                        var updatedImages = imagesData
+                        updatedImages[index] = pngData
+                        imagesData = updatedImages
+                        
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        print("✅ Background removed successfully")
+                        print("✅ Background removed successfully - image updated at index \(index)")
                     } else {
                         UINotificationFeedbackGenerator().notificationOccurred(.error)
                         print("❌ Failed to encode processed image as PNG")
@@ -795,7 +841,8 @@ struct ImageSelectionCell: View {
                 .padding(4)
             }
             
-            // Background Removal Button
+            // FEATURE CUT: Background Removal Button - Disabled for V1.0 (unstable)
+            /*
             Button(action: onRemoveBackground) {
                 HStack(spacing: 4) {
                     if isProcessing {
@@ -817,6 +864,7 @@ struct ImageSelectionCell: View {
                         .fill(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing))
                 )
             }
+            */
         }
     }
 }

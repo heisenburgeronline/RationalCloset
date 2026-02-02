@@ -19,7 +19,7 @@ struct CategoryConfig {
         (name: "上装", icon: "tshirt", description: "T恤 / 卫衣 / 衬衫"),
         (name: "下装", icon: "figure.walk", description: "牛仔裤 / 休闲裤"),
         (name: "外套", icon: "cloud.snow", description: "大衣 / 羽绒 / 夹克"),
-        (name: "裙装", icon: "curtains.closed", description: "连衣裙 / 半身裙"),
+        (name: "裙装", icon: "figure.dress", description: "连衣裙 / 半身裙"),
         (name: "内衣居家", icon: "house.fill", description: "睡衣 / 内衣 / 袜子"),
         (name: "鞋履", icon: "shoe.2", description: "运动鞋 / 靴子"),
         (name: "包包", icon: "bag", description: "背包 / 手提 / 钱包"),

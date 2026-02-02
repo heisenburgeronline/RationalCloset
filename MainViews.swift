@@ -212,12 +212,17 @@ struct CategoryDetailView: View {
         }
     }
     
+    // FIX: Get the actual icon for this category
+    private var categoryIcon: String {
+        CategoryConfig.categories.first(where: { $0.name == categoryName })?.icon ?? "tshirt"
+    }
+    
     var body: some View {
         Group {
             if items.isEmpty { 
                 VStack(spacing: 20) { 
-                    Image(systemName: "tshirt").font(.system(size: 60)).foregroundColor(.gray.opacity(0.5))
-                    Text("还没有\(categoryName)记录").font(.title3).foregroundColor(.secondary)
+                    Image(systemName: categoryIcon).font(.system(size: 60)).foregroundColor(.gray.opacity(0.5))
+                    Text("还没有添加\(categoryName)").font(.title3).foregroundColor(.secondary)
                     NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { 
                         HStack { 
                             Image(systemName: "plus.circle.fill")

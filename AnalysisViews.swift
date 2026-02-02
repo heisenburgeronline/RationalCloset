@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Photos
 
 struct RationalityAnalysisBlock: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
@@ -84,8 +85,21 @@ struct RationalityAnalysisBlock: View {
     }
     
     var funConversionText: String { 
-        if netSpending < 0 { return SavingsConversion.getFunText(for: abs(netSpending)) }
-        else { return SavingsConversion.getFunText(for: savingsDisplayAmount) }
+        // FIX: Don't show positive savings messages when over budget
+        if netSpending < 0 {
+            // Net profit - show positive message
+            return SavingsConversion.getFunText(for: abs(netSpending))
+        } else if isOverBudget {
+            // Over budget - show warning regardless of recovered amount
+            if periodRecovered > 0 {
+                return "虽然回血不少，但整体还是超支啦！控制一下剁手冲动吧 🐱"
+            } else {
+                return "理性小猫：警报！你的钱包正在流泪... 😿"
+            }
+        } else {
+            // Under budget - show positive savings message
+            return SavingsConversion.getFunText(for: savingsDisplayAmount)
+        }
     }
     var funIcon: String { SavingsConversion.getIcon(for: savingsDisplayAmount) }
     var rationalityIcon: String { netSpending < 0 ? "hand.thumbsup.fill" : (difference < 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") }
@@ -411,8 +425,27 @@ struct ShareReportSheet: View {
     
     private func saveToPhotos() {
         guard let image = renderedImage else { return }
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        
+        // FIX: Request photo library permission and ensure main actor
+        Task { @MainActor in
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            
+            switch status {
+            case .authorized, .limited:
+                // Save to photo library
+                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                print("✅ Image saved to Photos")
+            case .denied, .restricted:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                print("❌ Photo library access denied")
+            case .notDetermined:
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                print("⚠️ Photo library access not determined")
+            @unknown default:
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            }
+        }
     }
 }
 
