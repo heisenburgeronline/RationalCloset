@@ -401,7 +401,7 @@ struct GridItemCard: View {
                     Text("❄️")
                         .font(.system(size: 20))
                         .padding(4)
-                        .background(Circle().fill(Color.white.opacity(0.9)))
+                        .background(Circle().fill(Color(.systemBackground)))
                         .padding(6)
                 }
             }
