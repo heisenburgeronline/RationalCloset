@@ -203,8 +203,7 @@ struct CalendarDayCell: View {
             // Thumbnail or Indicator
             if hasOutfit {
                 if let firstItem = items.first,
-                   let imageData = firstItem.imagesData.first,
-                   let uiImage = UIImage(data: imageData) {
+                   let uiImage = firstItem.firstImage {
                     // Show tiny thumbnail
                     Image(uiImage: uiImage)
                         .resizable()
@@ -297,8 +296,7 @@ struct OutfitDetailSheet: View {
                                 NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) {
                                     VStack(spacing: 10) {
                                         // Image
-                                        if let imageData = item.imagesData.first,
-                                           let uiImage = UIImage(data: imageData) {
+                                        if let uiImage = item.firstImage {
                                             Image(uiImage: uiImage)
                                                 .resizable()
                                                 .scaledToFill()
