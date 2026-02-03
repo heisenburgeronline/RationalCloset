@@ -81,23 +81,50 @@ struct ItemDetailView: View {
                     
                     if !item.wearDates.isEmpty {
                         VStack(alignment: .leading, spacing: 15) {
-                            HStack { Image(systemName: "calendar.badge.clock").font(.system(size: 16, weight: .semibold)).foregroundColor(.indigo); Text("穿着记录").font(.headline); Spacer() }.padding(.horizontal)
-                            ScrollView {
-                                VStack(spacing: 10) {
-                                    ForEach(item.wearDates.sorted(by: >), id: \.self) { date in
-                                        HStack {
-                                            Image(systemName: "figure.walk").foregroundColor(.green)
-                                            Text(formatDate(date)).font(.system(size: 15, design: .monospaced))
-                                            Spacer()
-                                            if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days > 0 { Text("\(days)天前").font(.caption).foregroundColor(.secondary) }
-                                            else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days == 0 { Text("今天").font(.caption.weight(.bold)).foregroundColor(.green) }
-                                        }.padding(.horizontal, 16).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(Color(.secondarySystemGroupedBackground)))
+                            HStack { 
+                                Image(systemName: "calendar.badge.clock").font(.system(size: 16, weight: .semibold)).foregroundColor(.indigo)
+                                Text("穿着记录").font(.headline)
+                                Spacer()
+                                Text("左滑删除").font(.caption2).foregroundColor(.secondary)
+                            }.padding(.horizontal)
+                            
+                            List {
+                                ForEach(item.wearDates.sorted(by: >), id: \.self) { date in
+                                    HStack {
+                                        Image(systemName: "figure.walk").foregroundColor(.green)
+                                        Text(formatDate(date)).font(.system(size: 15, design: .monospaced))
+                                        Spacer()
+                                        if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days > 0 { 
+                                            Text("\(days)天前").font(.caption).foregroundColor(.secondary)
+                                        } else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days == 0 { 
+                                            Text("今天").font(.caption.weight(.bold)).foregroundColor(.green)
+                                        }
                                     }
-                                }.padding(.horizontal)
-                            }.frame(maxHeight: 250)
+                                    .padding(.vertical, 4)
+                                    .listRowBackground(Color(.secondarySystemGroupedBackground))
+                                }
+                                .onDelete { indexSet in
+                                    let sortedDates = item.wearDates.sorted(by: >)
+                                    for index in indexSet {
+                                        let dateToRemove = sortedDates[index]
+                                        wardrobeStore.removeWearDate(id: item.id, date: dateToRemove)
+                                    }
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                }
+                            }
+                            .listStyle(.plain)
+                            .frame(height: min(CGFloat(item.wearDates.count * 50), 250))
+                            .cornerRadius(10)
+                            .padding(.horizontal)
                         }.padding(.vertical, 15).background(Color(.systemGroupedBackground)).cornerRadius(16).padding(.horizontal)
                     } else {
-                        VStack(spacing: 12) { Image(systemName: "calendar.badge.exclamationmark").font(.system(size: 40)).foregroundColor(.orange.opacity(0.6)); Text("还没有穿着记录").font(.subheadline).foregroundColor(.secondary); if item.status == .active { Text("点击下方“今天穿了”按钮开始记录").font(.caption).foregroundColor(.secondary) } }.frame(maxWidth: .infinity).padding(.vertical, 40).background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
+                        VStack(spacing: 12) { 
+                            Image(systemName: "calendar.badge.exclamationmark").font(.system(size: 40)).foregroundColor(.orange.opacity(0.6))
+                            Text("这件还没穿过呢~").font(.subheadline).foregroundColor(.secondary)
+                            if item.status == .active { 
+                                Text("点击下方"今天穿了"按钮开始记录吧 ✨").font(.caption).foregroundColor(.secondary)
+                            }
+                        }.frame(maxWidth: .infinity).padding(.vertical, 40).background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
                     }
                     
                     if hasDetailedSizes {
@@ -1000,7 +1027,7 @@ struct CPWGoalProgressView: View {
                             .font(.system(size: 40))
                             .foregroundColor(.yellow)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("恭喜！已达成目标")
+                            Text("恭喜！这件衣服回本啦 🎉")
                                 .font(.system(size: 20, weight: .bold))
                                 .foregroundColor(.primary)
                             Text("当前\(LocalizationHelper.cpwLabel): ¥\(String(format: "%.1f", currentCPW))")

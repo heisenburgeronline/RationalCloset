@@ -5,6 +5,7 @@ struct MainDashboardView: View {
     @Environment(\.horizontalSizeClass) var sizeClass
     @State private var showSettings = false
     @State private var showCopySuccess = false
+    @State private var showUndoSuccess = false
     var gridColumns: [GridItem] { if sizeClass == .compact { return [GridItem(.flexible()), GridItem(.flexible())] } else { return [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] } }
     
     var body: some View {
@@ -27,48 +28,80 @@ struct MainDashboardView: View {
                     }.padding(.horizontal)
                     
                     NavigationLink(destination: RandomOutfitView().environmentObject(wardrobeStore)) {
-                        HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("一键不理性穿搭").font(.headline).foregroundColor(.white); Text("本功能不考虑季节、温度及路人眼光").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
+                        HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("一键不理性穿搭").font(.headline).foregroundColor(.white); Text("本功能不考虑季节、温度及路人眼光").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [Color(red: 0.7, green: 0.6, blue: 0.75), Color(red: 0.8, green: 0.65, blue: 0.75)], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
                     }.padding(.horizontal)
                     
                     // Copy Yesterday's Outfit - Quick Action
                     if wardrobeStore.hasYesterdayOutfit() {
-                        Button {
-                            wardrobeStore.copyYesterdayOutfit()
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            showCopySuccess = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                showCopySuccess = false
-                            }
-                        } label: {
-                            HStack {
-                                Text("⚡️").font(.title2)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("复制昨日穿搭").font(.headline).foregroundColor(.white)
-                                    Text(showCopySuccess ? "✅ 已复制昨日穿搭" : "快速记录今天的OOTD").font(.caption).foregroundColor(.white.opacity(0.8))
+                        VStack(spacing: 0) {
+                            Button {
+                                wardrobeStore.copyYesterdayOutfit()
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                showCopySuccess = true
+                                showUndoSuccess = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    showCopySuccess = false
                                 }
-                                Spacer()
-                                Image(systemName: showCopySuccess ? "checkmark.circle.fill" : "doc.on.doc.fill")
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .font(.title3)
-                            }
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    colors: showCopySuccess ? [.green, .teal] : [.cyan, .blue],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                            } label: {
+                                HStack {
+                                    Text(showUndoSuccess ? "↺" : "⚡️").font(.title2)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(showUndoSuccess ? "已撤销" : "复制昨日穿搭").font(.headline).foregroundColor(.white)
+                                        Text(showCopySuccess ? "✅ 已复制昨日穿搭" : (showUndoSuccess ? "穿搭记录已移除" : "快速记录今天的OOTD")).font(.caption).foregroundColor(.white.opacity(0.8))
+                                    }
+                                    Spacer()
+                                    
+                                    // Undo button (only show after successful copy)
+                                    if showCopySuccess && wardrobeStore.canUndoCopyYesterday() {
+                                        Button {
+                                            wardrobeStore.undoCopyYesterday()
+                                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                            showCopySuccess = false
+                                            showUndoSuccess = true
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                                showUndoSuccess = false
+                                            }
+                                        } label: {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "arrow.uturn.backward.circle.fill")
+                                                Text("撤销")
+                                            }
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color.white.opacity(0.2))
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    } else {
+                                        Image(systemName: showCopySuccess ? "checkmark.circle.fill" : (showUndoSuccess ? "arrow.uturn.backward.circle.fill" : "doc.on.doc.fill"))
+                                            .foregroundColor(.white.opacity(0.7))
+                                            .font(.title3)
+                                    }
+                                }
+                                .padding()
+                                .background(
+                                    LinearGradient(
+                                        colors: showUndoSuccess ? [Color(red: 0.5, green: 0.5, blue: 0.5), Color(red: 0.6, green: 0.6, blue: 0.6)] : (showCopySuccess ? [Color(red: 0.5, green: 0.7, blue: 0.6), Color(red: 0.6, green: 0.75, blue: 0.65)] : [Color(red: 0.5, green: 0.6, blue: 0.7), Color(red: 0.6, green: 0.65, blue: 0.75)]),
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                            .cornerRadius(16)
-                            .scaleEffect(showCopySuccess ? 1.02 : 1.0)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showCopySuccess)
+                                .cornerRadius(16)
+                                .scaleEffect(showCopySuccess || showUndoSuccess ? 1.02 : 1.0)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showCopySuccess)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showUndoSuccess)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                         .padding(.horizontal)
                     }
                     
                     NavigationLink(destination: CalendarView().environmentObject(wardrobeStore)) {
-                        HStack { Image(systemName: "calendar").font(.title2).foregroundColor(.white); VStack(alignment: .leading, spacing: 4) { Text("OOTD 穿搭日历").font(.headline).foregroundColor(.white); Text("查看你的每日穿搭记录").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.orange, .red], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
+                        HStack { Image(systemName: "calendar").font(.title2).foregroundColor(.white); VStack(alignment: .leading, spacing: 4) { Text("OOTD 穿搭日历").font(.headline).foregroundColor(.white); Text("查看你的每日穿搭记录").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [Color(red: 0.7, green: 0.65, blue: 0.55), Color(red: 0.75, green: 0.7, blue: 0.6)], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
                     }.padding(.horizontal)
                     
                     let coldPalaceItems = wardrobeStore.getColdPalaceItems()
@@ -156,7 +189,7 @@ struct AllItemsView: View {
                                 Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass")
                                     .font(.system(size: 40))
                                     .foregroundColor(.gray.opacity(0.5))
-                                Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物")
+                                Text(searchText.isEmpty ? "衣橱空空如也，去进货吧！🛍️" : "咦，没找到匹配的衣物 🔍")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
@@ -195,7 +228,7 @@ struct AllItemsView: View {
             } else {
                 List {
                     Section { Toggle("显示已出物品", isOn: $showingSoldItems).tint(.indigo) }
-                    if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "暂无衣物记录" : "未找到匹配的衣物").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
+                    if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "衣橱空空如也，去进货吧！🛍️" : "咦，没找到匹配的衣物 🔍").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
                     else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; showSoldSheet = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
                 }
                 .listStyle(.insetGrouped)
@@ -276,12 +309,12 @@ struct CategoryDetailView: View {
             if items.isEmpty { 
                 VStack(spacing: 20) { 
                     Image(systemName: categoryIcon).font(.system(size: 60)).foregroundColor(.gray.opacity(0.5))
-                    Text("这里空空如也").font(.title3).foregroundColor(.secondary)
+                    Text("这里还是空的呢~").font(.title3).foregroundColor(.secondary)
                     NavigationLink(destination: AddItemView(categoryName: categoryName).environmentObject(store)) { 
                         HStack { 
                             Image(systemName: "plus.circle.fill")
-                            Text("添加你的第一件好物") 
-                        }.font(.headline).foregroundColor(.white).padding(.horizontal, 30).padding(.vertical, 15).background(Color.accentColor).cornerRadius(12) 
+                            Text("添加你的第一件好物 ✨") 
+                        }.font(.headline).foregroundColor(.white).padding(.horizontal, 30).padding(.vertical, 15).background(LinearGradient(colors: [Color(red: 0.5, green: 0.6, blue: 0.7), Color(red: 0.6, green: 0.65, blue: 0.75)], startPoint: .leading, endPoint: .trailing)).cornerRadius(12) 
                     } 
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground)) 
             }
@@ -387,8 +420,8 @@ struct ColdPalaceListView: View {
                 VStack(spacing: 20) {
                     Text("🎉").font(.system(size: 80))
                     Text("太棒了！").font(.title.bold())
-                    Text("没有闲置的衣物").font(.title3).foregroundColor(.secondary)
-                    Text("你的衣橱利用率很高！").font(.subheadline).foregroundColor(.secondary)
+                    Text("没有吃灰的衣物呢~").font(.title3).foregroundColor(.secondary)
+                    Text("你的衣橱利用率超高！继续保持 💪").font(.subheadline).foregroundColor(.secondary)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(.systemGroupedBackground))
             } else {
                 List {
@@ -635,10 +668,10 @@ struct SettingsView: View {
             )) { exportData in
                 ExportShareSheet(data: exportData)
             }
-            .alert("暂无数据", isPresented: $showEmptyDataAlert) {
+            .alert("哎呀~", isPresented: $showEmptyDataAlert) {
                 Button("好的", role: .cancel) { }
             } message: {
-                Text("您的衣橱还是空的，添加一些衣物后再来导出吧！")
+                Text("衣橱还是空的呢，添加一些衣物后再来导出吧！📦")
             }
         }
     }

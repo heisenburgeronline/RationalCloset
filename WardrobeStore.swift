@@ -16,6 +16,9 @@ class WardrobeStore: ObservableObject {
     @Published var coldThresholdDays: Int = 60
     @Published var dailyNotes: [String: String] = [:] // Key: date string (yyyy-MM-dd), Value: note
     
+    // Track items affected by last copy operation for undo
+    private var lastCopiedItemIDs: [UUID] = []
+    
     private let storageKey: String = "MyWardrobeItems"
     private let budgetKey: String = "MonthlyBudget"
     private let coldThresholdKey: String = "ColdThresholdDays"
@@ -119,6 +122,16 @@ class WardrobeStore: ObservableObject {
     func addWearDate(id: UUID, date: Date = Date()) {
         if let index = items.firstIndex(where: { $0.id == id }) {
             items[index].wearDates.append(date)
+            saveData()
+        }
+    }
+    
+    func removeWearDate(id: UUID, date: Date) {
+        if let index = items.firstIndex(where: { $0.id == id }) {
+            // Remove the specific wear date
+            items[index].wearDates.removeAll { wearDate in
+                Calendar.current.isDate(wearDate, inSameDayAs: date)
+            }
             saveData()
         }
     }
@@ -562,6 +575,7 @@ class WardrobeStore: ObservableObject {
         
         let today = Date()
         var updated = false
+        lastCopiedItemIDs = [] // Reset tracking
         
         // Iterate through all items and check if they were worn yesterday
         for index in items.indices {
@@ -577,6 +591,7 @@ class WardrobeStore: ObservableObject {
                 
                 if !alreadyWornToday {
                     items[index].wearDates.append(today)
+                    lastCopiedItemIDs.append(items[index].id) // Track for undo
                     updated = true
                 }
             }
@@ -588,6 +603,41 @@ class WardrobeStore: ObservableObject {
             // Force UI update
             objectWillChange.send()
         }
+    }
+    
+    /// Undo the last copy yesterday operation
+    func undoCopyYesterday() {
+        guard !lastCopiedItemIDs.isEmpty else { return }
+        
+        let calendar = Calendar.current
+        let today = Date()
+        var updated = false
+        
+        // Remove today's date from all items that were copied
+        for itemID in lastCopiedItemIDs {
+            if let index = items.firstIndex(where: { $0.id == itemID }) {
+                // Remove today's wear date
+                items[index].wearDates.removeAll { date in
+                    calendar.isDate(date, inSameDayAs: today)
+                }
+                updated = true
+            }
+        }
+        
+        // Clear the tracking list
+        lastCopiedItemIDs = []
+        
+        // Save data if any updates were made
+        if updated {
+            saveData()
+            // Force UI update
+            objectWillChange.send()
+        }
+    }
+    
+    /// Check if there's a recent copy operation that can be undone
+    func canUndoCopyYesterday() -> Bool {
+        return !lastCopiedItemIDs.isEmpty
     }
     
     // MARK: - Rational Cat Logic v2.0

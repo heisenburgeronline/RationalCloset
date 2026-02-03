@@ -453,7 +453,7 @@ struct OutfitDetailSheet: View {
                                     Spacer()
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
-                                    Text("已自动保存")
+                                    Text("已自动保存 ✓")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
