@@ -540,21 +540,53 @@ class WardrobeStore: ObservableObject {
     
     /// Check if yesterday has any worn items
     func hasYesterdayOutfit() -> Bool {
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        return !getOutfit(for: yesterday).isEmpty
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) else {
+            return false
+        }
+        
+        // Check if any item has a wear date matching yesterday
+        return items.contains { item in
+            item.wearDates.contains { date in
+                calendar.isDate(date, inSameDayAs: yesterday)
+            }
+        }
     }
     
-    /// Copy all items worn yesterday to today
+    /// Copy all items worn yesterday to today (avoids duplicate logging)
     func copyYesterdayOutfit() {
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
-        let yesterdayItems = getOutfit(for: yesterday)
+        let calendar = Calendar.current
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) else {
+            return
+        }
         
-        guard !yesterdayItems.isEmpty else { return }
-        
-        // Add today's date to all yesterday's items
         let today = Date()
-        for item in yesterdayItems {
-            addWearDate(id: item.id, date: today)
+        var updated = false
+        
+        // Iterate through all items and check if they were worn yesterday
+        for index in items.indices {
+            let wasWornYesterday = items[index].wearDates.contains { date in
+                calendar.isDate(date, inSameDayAs: yesterday)
+            }
+            
+            if wasWornYesterday {
+                // Avoid duplicate logging for today
+                let alreadyWornToday = items[index].wearDates.contains { date in
+                    calendar.isDate(date, inSameDayAs: today)
+                }
+                
+                if !alreadyWornToday {
+                    items[index].wearDates.append(today)
+                    updated = true
+                }
+            }
+        }
+        
+        // Save data if any updates were made
+        if updated {
+            saveData()
+            // Force UI update
+            objectWillChange.send()
         }
     }
     

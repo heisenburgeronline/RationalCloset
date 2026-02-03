@@ -229,7 +229,7 @@ struct AddItemView: View {
     
     private var cpwGoalFooterText: String {
         let cpwLabel = LocalizationHelper.cpwLabel
-        return "设置一个目标 \(cpwLabel)，帮助你追踪这件衣物是否"回本"。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。"
+        return "设置一个目标 \(cpwLabel)，帮助你追踪这件衣物是否“回本”。例如：设置¥10，意味着你希望通过多次穿着，让每次穿着成本降到¥10以下。"
     }
     
     // MARK: - Rational Cat Card Style Properties (to fix compiler timeout)
