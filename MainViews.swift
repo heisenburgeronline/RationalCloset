@@ -4,6 +4,7 @@ struct MainDashboardView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @Environment(\.horizontalSizeClass) var sizeClass
     @State private var showSettings = false
+    @State private var showCopySuccess = false
     var gridColumns: [GridItem] { if sizeClass == .compact { return [GridItem(.flexible()), GridItem(.flexible())] } else { return [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] } }
     
     var body: some View {
@@ -28,6 +29,43 @@ struct MainDashboardView: View {
                     NavigationLink(destination: RandomOutfitView().environmentObject(wardrobeStore)) {
                         HStack { Text("🎲").font(.title2); VStack(alignment: .leading, spacing: 4) { Text("一键不理性穿搭").font(.headline).foregroundColor(.white); Text("本功能不考虑季节、温度及路人眼光").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.purple, .pink], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)
                     }.padding(.horizontal)
+                    
+                    // Copy Yesterday's Outfit - Quick Action
+                    if wardrobeStore.hasYesterdayOutfit() {
+                        Button {
+                            wardrobeStore.copyYesterdayOutfit()
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            showCopySuccess = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                showCopySuccess = false
+                            }
+                        } label: {
+                            HStack {
+                                Text("⚡️").font(.title2)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("复制昨日穿搭").font(.headline).foregroundColor(.white)
+                                    Text(showCopySuccess ? "✅ 已复制昨日穿搭" : "快速记录今天的OOTD").font(.caption).foregroundColor(.white.opacity(0.8))
+                                }
+                                Spacer()
+                                Image(systemName: showCopySuccess ? "checkmark.circle.fill" : "doc.on.doc.fill")
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .font(.title3)
+                            }
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: showCopySuccess ? [.green, .teal] : [.cyan, .blue],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .scaleEffect(showCopySuccess ? 1.02 : 1.0)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showCopySuccess)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                    }
                     
                     NavigationLink(destination: CalendarView().environmentObject(wardrobeStore)) {
                         HStack { Image(systemName: "calendar").font(.title2).foregroundColor(.white); VStack(alignment: .leading, spacing: 4) { Text("OOTD 穿搭日历").font(.headline).foregroundColor(.white); Text("查看你的每日穿搭记录").font(.caption).foregroundColor(.white.opacity(0.8)) }; Spacer(); Image(systemName: "chevron.right").foregroundColor(.white.opacity(0.7)) }.padding().background(LinearGradient(colors: [.orange, .red], startPoint: .leading, endPoint: .trailing)).cornerRadius(16)

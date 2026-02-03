@@ -14,15 +14,18 @@ class WardrobeStore: ObservableObject {
     @Published var items: [ClothingItem] = []
     @Published var monthlyBudget: Double = 2000.0
     @Published var coldThresholdDays: Int = 60
+    @Published var dailyNotes: [String: String] = [:] // Key: date string (yyyy-MM-dd), Value: note
     
     private let storageKey: String = "MyWardrobeItems"
     private let budgetKey: String = "MonthlyBudget"
     private let coldThresholdKey: String = "ColdThresholdDays"
+    private let dailyNotesKey: String = "DailyOutfitNotes"
     
     init() {
         loadData()
         loadBudget()
         loadColdThreshold()
+        loadDailyNotes()
         migrateImagesToFilesystem()
     }
     
@@ -492,6 +495,69 @@ class WardrobeStore: ObservableObject {
         UserDefaults.standard.synchronize()
     }
     
+    // MARK: - Daily Notes Management
+    
+    /// Generate date key for daily notes (yyyy-MM-dd format)
+    private func dateKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+    
+    /// Save daily notes to UserDefaults
+    func saveDailyNotes() {
+        if let data = try? JSONEncoder().encode(dailyNotes) {
+            UserDefaults.standard.set(data, forKey: dailyNotesKey)
+            UserDefaults.standard.synchronize()
+        }
+    }
+    
+    /// Load daily notes from UserDefaults
+    func loadDailyNotes() {
+        if let data = UserDefaults.standard.data(forKey: dailyNotesKey),
+           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+            dailyNotes = decoded
+        }
+    }
+    
+    /// Get note for a specific date
+    func getNote(for date: Date) -> String? {
+        dailyNotes[dateKey(for: date)]
+    }
+    
+    /// Set or update note for a specific date
+    func setNote(for date: Date, note: String) {
+        let key = dateKey(for: date)
+        if note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            dailyNotes.removeValue(forKey: key)
+        } else {
+            dailyNotes[key] = note
+        }
+        saveDailyNotes()
+    }
+    
+    // MARK: - Copy Yesterday's Outfit
+    
+    /// Check if yesterday has any worn items
+    func hasYesterdayOutfit() -> Bool {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        return !getOutfit(for: yesterday).isEmpty
+    }
+    
+    /// Copy all items worn yesterday to today
+    func copyYesterdayOutfit() {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+        let yesterdayItems = getOutfit(for: yesterday)
+        
+        guard !yesterdayItems.isEmpty else { return }
+        
+        // Add today's date to all yesterday's items
+        let today = Date()
+        for item in yesterdayItems {
+            addWearDate(id: item.id, date: today)
+        }
+    }
+    
     // MARK: - Rational Cat Logic v2.0
     
     /// Categories excluded from average price calculation
@@ -538,6 +604,7 @@ class WardrobeStore: ObservableObject {
         var items: [ClothingItem]
         var monthlyBudget: Double
         var coldThresholdDays: Int
+        var dailyNotes: [String: String]
         var exportDate: Date
         var appVersion: String
     }
@@ -547,6 +614,7 @@ class WardrobeStore: ObservableObject {
             items: items,
             monthlyBudget: monthlyBudget,
             coldThresholdDays: coldThresholdDays,
+            dailyNotes: dailyNotes,
             exportDate: Date(),
             appVersion: "11.0"
         )

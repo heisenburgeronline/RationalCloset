@@ -291,6 +291,8 @@ struct OutfitDetailSheet: View {
     @Environment(\.dismiss) var dismiss
     var date: Date
     var items: [ClothingItem]
+    @State private var dailyNote: String = ""
+    @FocusState private var isNoteFieldFocused: Bool
     
     private var dateString: String {
         let formatter = DateFormatter()
@@ -408,6 +410,62 @@ struct OutfitDetailSheet: View {
                         )
                         .padding(.horizontal)
                         
+                        // Daily Notes Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "note.text")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.indigo)
+                                Text("今日心得")
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            
+                            TextEditor(text: $dailyNote)
+                                .frame(minHeight: 100)
+                                .padding(8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(.tertiarySystemGroupedBackground))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isNoteFieldFocused ? Color.indigo : Color.clear, lineWidth: 1.5)
+                                )
+                                .overlay(alignment: .topLeading) {
+                                    if dailyNote.isEmpty && !isNoteFieldFocused {
+                                        Text("记录今天的穿搭心得...\n例如: 鞋子有点磨脚、今天被夸了、搭配很舒适...")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary.opacity(0.6))
+                                            .padding(.top, 16)
+                                            .padding(.leading, 12)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+                                .focused($isNoteFieldFocused)
+                                .onChange(of: dailyNote) { _, newValue in
+                                    // Auto-save when note changes
+                                    wardrobeStore.setNote(for: date, note: newValue)
+                                }
+                            
+                            if !dailyNote.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("已自动保存")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                        .padding(.horizontal)
+                        
                         Spacer(minLength: 20)
                     }
                 }
@@ -417,8 +475,23 @@ struct OutfitDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
+                        // Save note before dismissing (already auto-saved, but just in case)
+                        wardrobeStore.setNote(for: date, note: dailyNote)
                         dismiss()
                     }
+                }
+                
+                ToolbarItem(placement: .keyboard) {
+                    Button("完成") {
+                        isNoteFieldFocused = false
+                    }
+                    .font(.headline)
+                }
+            }
+            .onAppear {
+                // Load existing note when sheet appears
+                if let existingNote = wardrobeStore.getNote(for: date) {
+                    dailyNote = existingNote
                 }
             }
         }

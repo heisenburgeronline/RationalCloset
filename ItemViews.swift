@@ -947,6 +947,36 @@ struct CPWGoalProgressView: View {
         return min(1.0, Double(item.wearCount) / targetWears)
     }
     
+    // MARK: - Break-even Date Calculation
+    
+    /// Calculate the exact date and wear number when the item broke even
+    private var breakEvenInfo: (date: Date, wearNumber: Int)? {
+        guard goalReached, !item.wearDates.isEmpty else { return nil }
+        
+        // Sort wear dates chronologically
+        let sortedDates = item.wearDates.sorted()
+        
+        // Iterate through wears to find when CPW first reached target
+        for (index, date) in sortedDates.enumerated() {
+            let wearNumber = index + 1
+            let cpwAtThatMoment = item.price / Double(wearNumber)
+            
+            if cpwAtThatMoment <= targetCPW {
+                return (date, wearNumber)
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Format the break-even date
+    private func formatBreakEvenDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.string(from: date)
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 8) {
@@ -978,6 +1008,29 @@ struct CPWGoalProgressView: View {
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
+                    }
+                    
+                    // Break-even Date & Wear Number
+                    if let breakEven = breakEvenInfo {
+                        HStack(spacing: 8) {
+                            Image(systemName: "calendar.badge.checkmark")
+                                .foregroundColor(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("于 \(formatBreakEvenDate(breakEven.date)) (第 \(breakEven.wearNumber) 次穿着) 达成目标 🎉")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                            }
+                            Spacer()
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.orange.opacity(0.1))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
                     }
                     
                     HStack {
