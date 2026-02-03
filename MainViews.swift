@@ -168,7 +168,7 @@ struct MainDashboardView: View {
 
 struct AllItemsView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
-    @State private var searchText = ""; @State private var showingSoldItems = true; @State private var itemToDelete: ClothingItem?; @State private var showDeleteConfirmation = false; @State private var itemToMarkSold: ClothingItem?; @State private var showSoldSheet = false
+    @State private var searchText = ""; @State private var showingSoldItems = true; @State private var itemToDelete: ClothingItem?; @State private var showDeleteConfirmation = false; @State private var itemToMarkSold: ClothingItem?
     @State private var isGridMode = false; @State private var recentlySoldIds: Set<UUID> = []; @State private var recentlyWornIds: Set<UUID> = []
     var monthlyGroups: [MonthlyGroup] { wardrobeStore.getItemsGroupedByMonth(includeSold: showingSoldItems, searchQuery: searchText) }
     var totalDisplayedCount: Int { monthlyGroups.reduce(0) { $0 + $1.itemCount } }
@@ -229,7 +229,7 @@ struct AllItemsView: View {
                 List {
                     Section { Toggle("显示已出物品", isOn: $showingSoldItems).tint(.indigo) }
                     if monthlyGroups.isEmpty { Section { VStack(spacing: 12) { Image(systemName: searchText.isEmpty ? "tshirt" : "magnifyingglass").font(.system(size: 40)).foregroundColor(.gray.opacity(0.5)); Text(searchText.isEmpty ? "衣橱空空如也，去进货吧！🛍️" : "咦，没找到匹配的衣物 🔍").font(.subheadline).foregroundColor(.secondary) }.frame(maxWidth: .infinity).padding(.vertical, 40) } }
-                    else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item; showSoldSheet = true } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
+                    else { ForEach(monthlyGroups) { group in Section { ForEach(group.items) { item in NavigationLink(destination: ItemDetailView(item: item).environmentObject(wardrobeStore)) { AllItemRow(item: item, isRecentlySold: recentlySoldIds.contains(item.id), isRecentlyWorn: recentlyWornIds.contains(item.id), onWear: { wearItem(item) }) }.swipeActions(edge: .trailing, allowsFullSwipe: false) { Button(role: .destructive) { itemToDelete = item; showDeleteConfirmation = true } label: { Label("删除", systemImage: "trash.fill") }; if item.status == .active { Button { itemToMarkSold = item } label: { Label("已出", systemImage: "tag.fill") }.tint(.orange) } } } } header: { HStack { Image(systemName: "calendar").font(.system(size: 12)).foregroundColor(.indigo); Text(group.monthKey).font(.system(size: 14, weight: .semibold)); Spacer(); Text("本月购入 \(group.itemCount) 件").font(.system(size: 12)).foregroundColor(.secondary) } } } }
                 }
                 .listStyle(.insetGrouped)
             }
@@ -252,10 +252,8 @@ struct AllItemsView: View {
             }
         }
         .alert("确认删除", isPresented: $showDeleteConfirmation) { Button("取消", role: .cancel) { itemToDelete = nil }; Button("删除", role: .destructive) { if let item = itemToDelete { wardrobeStore.deleteItemById(id: item.id); itemToDelete = nil } } } message: { Text("删除后将无法恢复，确定要删除这件衣物吗？") }
-        .sheet(isPresented: $showSoldSheet) {
-            if let item = itemToMarkSold {
-                MarkAsSoldView(item: item).environmentObject(wardrobeStore)
-            }
+        .sheet(item: $itemToMarkSold) { item in
+            MarkAsSoldView(item: item).environmentObject(wardrobeStore)
         }
     }
     private func wearItem(_ item: ClothingItem) { UIImpactFeedbackGenerator(style: .medium).impactOccurred(); recentlyWornIds.insert(item.id); withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) { wardrobeStore.addWearDate(id: item.id) }; DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { recentlyWornIds.remove(item.id) } }
@@ -552,8 +550,7 @@ struct SettingsView: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @Environment(\.dismiss) var dismiss
     @State private var coldThreshold: Double = 60
-    @State private var showExportSuccess = false
-    @State private var exportedData: String?
+    @State private var exportData: ExportData?
     @State private var showEmptyDataAlert = false
     
     var body: some View {
@@ -610,7 +607,7 @@ struct SettingsView: View {
                 // Data Management Section
                 Section {
                     Button {
-                        exportData()
+                        performExport()
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: "square.and.arrow.up.on.square")
@@ -674,11 +671,8 @@ struct SettingsView: View {
             .onAppear {
                 coldThreshold = Double(wardrobeStore.coldThresholdDays)
             }
-            .sheet(item: Binding(
-                get: { exportedData.map { ExportData(content: $0, fileName: wardrobeStore.getExportFileName()) } },
-                set: { exportedData = $0?.content }
-            )) { exportData in
-                ExportShareSheet(data: exportData)
+            .sheet(item: $exportData) { data in
+                ExportShareSheet(data: data)
             }
             .alert("哎呀~", isPresented: $showEmptyDataAlert) {
                 Button("好的", role: .cancel) { }
@@ -688,20 +682,28 @@ struct SettingsView: View {
         }
     }
     
-    private func exportData() {
+    private func performExport() {
         // Validate: Check if there's any data to export
         if wardrobeStore.items.isEmpty {
-            showEmptyDataAlert = true
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            DispatchQueue.main.async {
+                showEmptyDataAlert = true
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
             return
         }
         
-        // Proceed with export
-        if let jsonString = wardrobeStore.exportDataAsJSON() {
-            exportedData = jsonString
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } else {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        // Proceed with export in background, update UI on main thread
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let jsonString = wardrobeStore.exportDataAsJSON() {
+                DispatchQueue.main.async {
+                    exportData = ExportData(content: jsonString, fileName: wardrobeStore.getExportFileName())
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            } else {
+                DispatchQueue.main.async {
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                }
+            }
         }
     }
 }

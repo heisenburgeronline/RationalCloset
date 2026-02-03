@@ -276,6 +276,10 @@ struct AddItemView: View {
     @State private var isProcessingBackground = false
     @State private var selectedImageIndexForBG: Int?
     @State private var targetCPWText = "" // CPW Goal
+    @State private var showImageSourceDialog = false
+    @State private var showCameraPicker = false
+    @State private var showPhotoPicker = false
+    @State private var showCameraError = false
     
     var isClothingCategory: Bool {
         let clothingCategories = ["上装", "下装", "外套", "内衣", "运动服", "连衣裙", "套装"]
@@ -374,7 +378,9 @@ struct AddItemView: View {
                         }
                         
                         if imagesData.count < 5 {
-                            PhotosPicker(selection: $photoPickerItems, maxSelectionCount: 5 - imagesData.count, matching: .images) {
+                            Button {
+                                showImageSourceDialog = true
+                            } label: {
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(Color.gray.opacity(0.15))
                                     .frame(width: 110, height: 110)
@@ -387,6 +393,7 @@ struct AddItemView: View {
                                         .foregroundColor(.gray)
                                     )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -676,6 +683,33 @@ struct AddItemView: View {
                 .font(.headline)
             }
         }
+        .confirmationDialog("选择图片来源", isPresented: $showImageSourceDialog) {
+            Button("📷 拍照") {
+                // Check if camera is available (prevents simulator crash)
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    showCameraPicker = true
+                } else {
+                    showCameraError = true
+                }
+            }
+            Button("🖼️ 从相册选择") {
+                showPhotoPicker = true
+            }
+            Button("取消", role: .cancel) { }
+        }
+        .alert("无法使用相机", isPresented: $showCameraError) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            Text("当前设备（如模拟器）不支持相机功能，请使用真机或从相册选择照片 📱")
+        }
+        .sheet(isPresented: $showCameraPicker) {
+            CameraPickerView { image in
+                if let imageData = image.jpegData(compressionQuality: 0.95) {
+                    imagesData.append(imageData)
+                }
+            }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoPickerItems, maxSelectionCount: 5 - imagesData.count, matching: .images)
         .onChange(of: photoPickerItems) { _, newItems in loadPhotos(from: newItems) }
         .onAppear { currentWarningMessage = RationalityCatMessages.randomWarning() }
     }
@@ -1283,5 +1317,43 @@ struct UndoToastView: View {
                 .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
         )
         .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - Camera Picker Wrapper
+struct CameraPickerView: UIViewControllerRepresentable {
+    let onImagePicked: (UIImage) -> Void
+    @Environment(\.dismiss) var dismiss
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: CameraPickerView
+        
+        init(_ parent: CameraPickerView) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImagePicked(image)
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
     }
 }
