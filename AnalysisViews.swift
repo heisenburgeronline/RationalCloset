@@ -408,8 +408,35 @@ struct ShareReportSheet: View {
                 Text("分享你的理性战绩").font(.title2.bold()).padding(.top)
                 ShareableReportView(moneySaved: moneySaved, totalRecovered: totalRecovered, totalSpent: totalSpent, netSpending: netSpending, itemCount: itemCount, period: period)
                 if let image = renderedImage {
-                    ShareLink(item: Image(uiImage: image), preview: SharePreview("我的理性战绩", image: Image(uiImage: image))) { HStack { Image(systemName: "square.and.arrow.up"); Text("分享到朋友圈") }.font(.headline).foregroundColor(.white).frame(maxWidth: .infinity).padding().background(LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing)).cornerRadius(14) }.padding(.horizontal, sizeClass == .compact ? 30 : 40)
-                    Button { saveToPhotos() } label: { HStack { Image(systemName: "photo.on.rectangle.angled"); Text("保存到相册") }.font(.headline).foregroundColor(.indigo).frame(maxWidth: .infinity).padding().background(Color.indigo.opacity(0.1)).cornerRadius(14) }.padding(.horizontal, sizeClass == .compact ? 30 : 40)
+                    // Primary Action: Save to Photos
+                    Button { saveToPhotos() } label: { 
+                        HStack { 
+                            Image(systemName: "photo.on.rectangle.angled")
+                            Text("保存到相册") 
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(LinearGradient(colors: [.indigo, .purple], startPoint: .leading, endPoint: .trailing))
+                        .cornerRadius(14) 
+                    }
+                    .padding(.horizontal, sizeClass == .compact ? 30 : 40)
+                    
+                    // Secondary Action: System Share
+                    ShareLink(item: Image(uiImage: image), preview: SharePreview("我的理性战绩", image: Image(uiImage: image))) { 
+                        HStack { 
+                            Image(systemName: "square.and.arrow.up")
+                            Text("分享") 
+                        }
+                        .font(.headline)
+                        .foregroundColor(.indigo)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.indigo.opacity(0.1))
+                        .cornerRadius(14) 
+                    }
+                    .padding(.horizontal, sizeClass == .compact ? 30 : 40)
                 }
                 Spacer()
             }

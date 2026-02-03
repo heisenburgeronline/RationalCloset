@@ -205,7 +205,7 @@ struct ItemCardRow: View {
     
     // Time since last worn
     var daysSinceLastWorn: String? {
-        guard let lastWornDate = item.wearHistory.max() else { return nil }
+        guard let lastWornDate = item.wearDates.max() else { return nil }
         let days = Calendar.current.dateComponents([.day], from: lastWornDate, to: Date()).day ?? 0
         if days == 0 { return "今天" }
         if days == 1 { return "昨天" }
@@ -274,12 +274,15 @@ struct ItemCardRow: View {
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.orange)
                         }
-                        // Status icons
+                        // Enhanced Break-even Indicator
+                        if isBreakEven {
+                            Text("• ✅ 已回本")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.orange)
+                        }
+                        // Dusty Corner icon
                         if isCold {
                             Text("🕸️").font(.system(size: 14))
-                        }
-                        if isBreakEven {
-                            Text("🎉").font(.system(size: 14))
                         }
                     }
                     
@@ -293,7 +296,7 @@ struct ItemCardRow: View {
                             .foregroundColor(.secondary)
                         Text("CPW: ¥\(String(format: "%.0f", item.costPerWear))")
                             .font(.caption)
-                            .foregroundColor(.purple.opacity(0.8))
+                            .foregroundColor(isBreakEven ? .orange : .purple.opacity(0.8))
                         if !item.platform.isEmpty {
                             Text("• \(item.platform)")
                                 .font(.caption2)
