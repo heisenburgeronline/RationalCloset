@@ -12,7 +12,12 @@ struct MonthlyTitle {
 
 class WardrobeStore: ObservableObject {
     @Published var items: [ClothingItem] = []
-    @Published var monthlyBudget: Double = 2000.0
+    
+    // Smart Budget System - Three separate budgets for different time periods
+    @Published var budgetWeekly: Double = 500.0
+    @Published var budgetMonthly: Double = 2000.0
+    @Published var budgetYearly: Double = 20000.0
+    
     @Published var coldThresholdDays: Int = 60
     @Published var dailyNotes: [String: String] = [:] // Key: date string (yyyy-MM-dd), Value: note
     
@@ -20,13 +25,15 @@ class WardrobeStore: ObservableObject {
     private var lastCopiedItemIDs: [UUID] = []
     
     private let storageKey: String = "MyWardrobeItems"
-    private let budgetKey: String = "MonthlyBudget"
+    private let budgetWeeklyKey: String = "BudgetWeekly"
+    private let budgetMonthlyKey: String = "BudgetMonthly"
+    private let budgetYearlyKey: String = "BudgetYearly"
     private let coldThresholdKey: String = "ColdThresholdDays"
     private let dailyNotesKey: String = "DailyOutfitNotes"
     
     init() {
         loadData()
-        loadBudget()
+        loadBudgets()
         loadColdThreshold()
         loadDailyNotes()
         migrateImagesToFilesystem()
@@ -324,9 +331,9 @@ class WardrobeStore: ObservableObject {
     
     func getBudgetForPeriod(period: StatisticsPeriod) -> Double {
         switch period {
-        case .week: return monthlyBudget / 4.0
-        case .month: return monthlyBudget
-        case .year: return monthlyBudget * 12.0
+        case .week: return budgetWeekly
+        case .month: return budgetMonthly
+        case .year: return budgetYearly
         }
     }
     
@@ -411,7 +418,7 @@ class WardrobeStore: ObservableObject {
         }
         
         // 3. High Spender (> 150% Budget)
-        if currentMonthSpending > monthlyBudget * 1.5 {
+        if currentMonthSpending > budgetMonthly * 1.5 {
             return MonthlyTitle(
                 title: "钱包粉碎机",
                 subtitle: "再买就要去天桥贴膜了",
@@ -421,7 +428,7 @@ class WardrobeStore: ObservableObject {
         }
         
         // 4. Low Spender (< 20% Budget)
-        if currentMonthSpending < monthlyBudget * 0.2 && currentMonthSpending > 0 {
+        if currentMonthSpending < budgetMonthly * 0.2 && currentMonthSpending > 0 {
             return MonthlyTitle(
                 title: "人形存钱罐",
                 subtitle: "抠门...哦不，是节俭的艺术",
@@ -441,7 +448,7 @@ class WardrobeStore: ObservableObject {
         }
         
         // 6. Balanced (Spend ≈ Budget, within 90%-110%)
-        if currentMonthSpending >= monthlyBudget * 0.9 && currentMonthSpending <= monthlyBudget * 1.1 {
+        if currentMonthSpending >= budgetMonthly * 0.9 && currentMonthSpending <= budgetMonthly * 1.1 {
             return MonthlyTitle(
                 title: "端水大师",
                 subtitle: "居然能精准控制预算，是个狠人",
@@ -474,21 +481,51 @@ class WardrobeStore: ObservableObject {
         }
     }
     
-    func saveBudget() {
-        UserDefaults.standard.set(monthlyBudget, forKey: budgetKey)
+    // MARK: - Smart Budget Management
+    
+    func saveBudgets() {
+        UserDefaults.standard.set(budgetWeekly, forKey: budgetWeeklyKey)
+        UserDefaults.standard.set(budgetMonthly, forKey: budgetMonthlyKey)
+        UserDefaults.standard.set(budgetYearly, forKey: budgetYearlyKey)
         UserDefaults.standard.synchronize()
     }
     
-    func loadBudget() {
-        let saved = UserDefaults.standard.double(forKey: budgetKey)
-        if saved > 0 {
-            monthlyBudget = saved
+    func loadBudgets() {
+        // Load weekly budget
+        let savedWeekly = UserDefaults.standard.double(forKey: budgetWeeklyKey)
+        if savedWeekly > 0 {
+            budgetWeekly = savedWeekly
+        }
+        
+        // Load monthly budget (with migration from old key)
+        let savedMonthly = UserDefaults.standard.double(forKey: budgetMonthlyKey)
+        if savedMonthly > 0 {
+            budgetMonthly = savedMonthly
+        } else {
+            // Migrate from old "MonthlyBudget" key
+            let oldBudget = UserDefaults.standard.double(forKey: "MonthlyBudget")
+            if oldBudget > 0 {
+                budgetMonthly = oldBudget
+            }
+        }
+        
+        // Load yearly budget
+        let savedYearly = UserDefaults.standard.double(forKey: budgetYearlyKey)
+        if savedYearly > 0 {
+            budgetYearly = savedYearly
         }
     }
     
-    func updateBudget(newBudget: Double) {
-        monthlyBudget = newBudget
-        saveBudget()
+    func updateBudget(forPeriod period: StatisticsPeriod, newBudget: Double) {
+        switch period {
+        case .week:
+            budgetWeekly = newBudget
+        case .month:
+            budgetMonthly = newBudget
+        case .year:
+            budgetYearly = newBudget
+        }
+        saveBudgets()
     }
     
     func updateColdThreshold(days: Int) {
@@ -684,7 +721,9 @@ class WardrobeStore: ObservableObject {
     // MARK: - Data Export / Backup
     struct BackupData: Codable {
         var items: [ClothingItem]
-        var monthlyBudget: Double
+        var budgetWeekly: Double
+        var budgetMonthly: Double
+        var budgetYearly: Double
         var coldThresholdDays: Int
         var dailyNotes: [String: String]
         var exportDate: Date
@@ -694,7 +733,9 @@ class WardrobeStore: ObservableObject {
     func exportDataAsJSON() -> String? {
         let backup = BackupData(
             items: items,
-            monthlyBudget: monthlyBudget,
+            budgetWeekly: budgetWeekly,
+            budgetMonthly: budgetMonthly,
+            budgetYearly: budgetYearly,
             coldThresholdDays: coldThresholdDays,
             dailyNotes: dailyNotes,
             exportDate: Date(),

@@ -18,6 +18,15 @@ struct RationalityAnalysisBlock: View {
     var allTimeRecovered: Double { wardrobeStore.calculateAllTimeRecovered() }
     var netSpending: Double { wardrobeStore.calculateNetSpending(forPeriod: analysisPeriod) }
     
+    // Smart budget label based on period
+    var budgetLabel: String {
+        switch analysisPeriod {
+        case .week: return "周预算"
+        case .month: return "月预算"
+        case .year: return "年预算"
+        }
+    }
+    
     // Monthly Title
     var monthlyTitle: MonthlyTitle { wardrobeStore.calculateMonthlyTitle() }
     
@@ -170,10 +179,10 @@ struct RationalityAnalysisBlock: View {
                 }
                 .padding(.horizontal, 4)
                 
-                // 预算行
+                // 预算行 - Smart Budget Display
                 HStack {
-                    Text("月预算").font(.system(size: 14)).foregroundColor(.secondary)
-                    Text(String(format: "¥%.0f", wardrobeStore.monthlyBudget)).font(.system(size: 14, weight: .semibold)).foregroundColor(.indigo)
+                    Text(budgetLabel).font(.system(size: 14)).foregroundColor(.secondary)
+                    Text(String(format: "¥%.0f", budget)).font(.system(size: 14, weight: .semibold)).foregroundColor(.indigo)
                     Button { showBudgetEditor = true } label: { Image(systemName: "pencil.circle.fill").font(.system(size: 20)).foregroundColor(.indigo) }
                     Spacer()
                     if allTimeRecovered > 0 { HStack(spacing: 4) { Image(systemName: "star.circle.fill").font(.system(size: 14)).foregroundColor(.yellow); Text("回血达人").font(.system(size: 12, weight: .bold)).foregroundColor(.orange) }.padding(.horizontal, 8).padding(.vertical, 4).background(Capsule().fill(Color.orange.opacity(0.15))) }
@@ -279,7 +288,7 @@ struct RationalityAnalysisBlock: View {
         }
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemGroupedBackground)))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.indigo.opacity(0.3), lineWidth: 1.5))
-        .sheet(isPresented: $showBudgetEditor) { BudgetEditorSheet(isPresented: $showBudgetEditor).environmentObject(wardrobeStore) }
+        .sheet(isPresented: $showBudgetEditor) { BudgetEditorSheet(isPresented: $showBudgetEditor, period: analysisPeriod).environmentObject(wardrobeStore) }
         .sheet(isPresented: $showShareSheet) { ShareReportSheet(moneySaved: moneySaved, totalRecovered: periodRecovered, totalSpent: totalSpent, netSpending: netSpending, itemCount: itemCount, period: analysisPeriod) }
     }
 }
@@ -496,30 +505,54 @@ struct ShareReportSheet: View {
 struct BudgetEditorSheet: View {
     @EnvironmentObject var wardrobeStore: WardrobeStore
     @Binding var isPresented: Bool
+    let period: StatisticsPeriod
     @State private var budgetText: String = ""
     var isValidBudget: Bool { Double(budgetText).map { $0 > 0 } ?? false }
+    
+    // Smart labels and values based on period
+    var budgetTitle: String {
+        switch period {
+        case .week: return "设置周预算"
+        case .month: return "设置月预算"
+        case .year: return "设置年预算"
+        }
+    }
+    
+    var currentBudget: Double {
+        wardrobeStore.getBudgetForPeriod(period: period)
+    }
+    
+    var quickSetAmounts: [Int] {
+        switch period {
+        case .week: return [200, 500, 800, 1000]
+        case .month: return [1000, 2000, 3000, 5000]
+        case .year: return [10000, 20000, 30000, 50000]
+        }
+    }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 30) {
-                VStack(spacing: 12) { Image(systemName: "dollarsign.circle.fill").font(.system(size: 60)).foregroundColor(.indigo); Text("设置月预算").font(.title2.bold()); Text("合理的预算有助于理性消费").font(.subheadline).foregroundColor(.secondary) }.padding(.top, 30)
-                VStack(spacing: 16) { TextField("输入预算金额", text: $budgetText).font(.system(size: 24, weight: .semibold, design: .rounded)).keyboardType(.decimalPad).multilineTextAlignment(.center).padding().background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6))).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.indigo.opacity(0.3), lineWidth: 1)).padding(.horizontal, 40); Text("当前预算: ¥\(String(format: "%.0f", wardrobeStore.monthlyBudget))").font(.caption).foregroundColor(.secondary) }
+                VStack(spacing: 12) { Image(systemName: "dollarsign.circle.fill").font(.system(size: 60)).foregroundColor(.indigo); Text(budgetTitle).font(.title2.bold()); Text("合理的预算有助于理性消费").font(.subheadline).foregroundColor(.secondary) }.padding(.top, 30)
+                VStack(spacing: 16) { TextField("输入预算金额", text: $budgetText).font(.system(size: 24, weight: .semibold, design: .rounded)).keyboardType(.decimalPad).multilineTextAlignment(.center).padding().background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6))).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.indigo.opacity(0.3), lineWidth: 1)).padding(.horizontal, 40); Text("当前预算: ¥\(String(format: "%.0f", currentBudget))").font(.caption).foregroundColor(.secondary) }
                 VStack(spacing: 12) {
                     Text("快捷设置").font(.subheadline).foregroundColor(.secondary)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach([1000, 2000, 3000, 5000], id: \.self) { amount in Button { budgetText = "\(amount)" } label: { Text("¥\(amount)").font(.subheadline.weight(.medium)).foregroundColor(budgetText == "\(amount)" ? .white : .indigo).frame(maxWidth: .infinity).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(budgetText == "\(amount)" ? Color.indigo : Color.indigo.opacity(0.1))) } }
+                        ForEach(quickSetAmounts, id: \.self) { amount in Button { budgetText = "\(amount)" } label: { Text("¥\(amount)").font(.subheadline.weight(.medium)).foregroundColor(budgetText == "\(amount)" ? .white : .indigo).frame(maxWidth: .infinity).padding(.vertical, 12).background(RoundedRectangle(cornerRadius: 10).fill(budgetText == "\(amount)" ? Color.indigo : Color.indigo.opacity(0.1))) } }
                     }.padding(.horizontal, 40)
                 }
                 Spacer()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .navigationBarLeading) { Button("取消") { isPresented = false } }; ToolbarItem(placement: .navigationBarTrailing) { Button("保存") { saveBudgetAction() }.fontWeight(.semibold).disabled(!isValidBudget) } }
-            .onAppear { budgetText = String(format: "%.0f", wardrobeStore.monthlyBudget) }
+            .onAppear { budgetText = String(format: "%.0f", currentBudget) }
         }.presentationDetents([.medium])
     }
     
     private func saveBudgetAction() {
-        if let value = Double(budgetText), value > 0 { wardrobeStore.updateBudget(newBudget: value) }
+        if let value = Double(budgetText), value > 0 { 
+            wardrobeStore.updateBudget(forPeriod: period, newBudget: value)
+        }
         isPresented = false
     }
 }

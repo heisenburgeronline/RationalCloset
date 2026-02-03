@@ -584,15 +584,27 @@ struct SettingsView: View {
                 
                 Section {
                     HStack {
-                        Text("月度预算")
+                        Text("周预算")
                         Spacer()
-                        Text("¥\(String(format: "%.0f", wardrobeStore.monthlyBudget))")
+                        Text("¥\(String(format: "%.0f", wardrobeStore.budgetWeekly))")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("月预算")
+                        Spacer()
+                        Text("¥\(String(format: "%.0f", wardrobeStore.budgetMonthly))")
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text("年预算")
+                        Spacer()
+                        Text("¥\(String(format: "%.0f", wardrobeStore.budgetYearly))")
                             .foregroundColor(.secondary)
                     }
                 } header: {
                     Text("预算设置")
                 } footer: {
-                    Text("在分析视图中可以调整预算")
+                    Text("在分析视图中可以根据时间范围调整对应预算")
                 }
                 
                 // Data Management Section

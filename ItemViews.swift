@@ -9,6 +9,8 @@ struct ItemDetailView: View {
     @State private var showEditSheet = false
     @State private var showSoldSheet = false
     @State private var justWore = false
+    @State private var showUndoToast = false
+    @State private var lastAddedDate: Date?
     
     private var hasDetailedSizes: Bool { 
         (item.shoulderWidth != nil && !item.shoulderWidth!.isEmpty) || 
@@ -122,7 +124,7 @@ struct ItemDetailView: View {
                             Image(systemName: "calendar.badge.exclamationmark").font(.system(size: 40)).foregroundColor(.orange.opacity(0.6))
                             Text("这件还没穿过呢~").font(.subheadline).foregroundColor(.secondary)
                             if item.status == .active { 
-                                Text("点击下方"今天穿了"按钮开始记录吧 ✨").font(.caption).foregroundColor(.secondary)
+                                Text("点击下方“今天穿了”按钮开始记录吧 ✨").font(.caption).foregroundColor(.secondary)
                             }
                         }.frame(maxWidth: .infinity).padding(.vertical, 40).background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGroupedBackground))).padding(.horizontal)
                     }
@@ -171,7 +173,29 @@ struct ItemDetailView: View {
                     
                     if item.status == .active {
                         VStack(spacing: 12) {
-                            Button { wardrobeStore.addWearDate(id: item.id); UIImpactFeedbackGenerator(style: .medium).impactOccurred(); justWore = true; DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { justWore = false } } label: { HStack { Image(systemName: "figure.walk"); Text("今天穿了").font(.headline) }.frame(maxWidth: .infinity).padding().background(LinearGradient(colors: [.green, .teal], startPoint: .leading, endPoint: .trailing)).foregroundColor(.white).cornerRadius(14) }.scaleEffect(justWore ? 1.1 : 1.0).animation(.spring(response: 0.3, dampingFraction: 0.5), value: justWore)
+                            Button {
+                                let now = Date()
+                                lastAddedDate = now
+                                wardrobeStore.addWearDate(id: item.id, date: now)
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                justWore = true
+                                showUndoToast = true
+                                
+                                // Hide animation after 0.5s
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    justWore = false
+                                }
+                                
+                                // Auto-hide toast after 3 seconds
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                    showUndoToast = false
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "figure.walk")
+                                    Text("今天穿了").font(.headline)
+                                }.frame(maxWidth: .infinity).padding().background(LinearGradient(colors: [Color(red: 0.5, green: 0.7, blue: 0.6), Color(red: 0.6, green: 0.75, blue: 0.65)], startPoint: .leading, endPoint: .trailing)).foregroundColor(.white).cornerRadius(14)
+                            }.scaleEffect(justWore ? 1.1 : 1.0).animation(.spring(response: 0.3, dampingFraction: 0.5), value: justWore)
                             HStack(spacing: 12) {
                                 Button { showEditSheet = true } label: { HStack { Image(systemName: "pencil"); Text("编辑") }.font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding().background(Color.indigo.opacity(0.1)).foregroundColor(.indigo).cornerRadius(12) }
                                 Button { showSoldSheet = true } label: { HStack { Image(systemName: "tag"); Text("已出") }.font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding().background(Color.orange.opacity(0.1)).foregroundColor(.orange).cornerRadius(12) }
@@ -180,6 +204,24 @@ struct ItemDetailView: View {
                     }
                     Spacer(minLength: 30)
                 }
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showUndoToast {
+                UndoToastView(
+                    showToast: $showUndoToast,
+                    onUndo: {
+                        if let dateToRemove = lastAddedDate {
+                            wardrobeStore.removeWearDate(id: item.id, date: dateToRemove)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            showUndoToast = false
+                            lastAddedDate = nil
+                        }
+                    }
+                )
+                .padding(.bottom, 20)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showUndoToast)
             }
         }
         .navigationTitle("物品详情").navigationBarTitleDisplayMode(.inline)
@@ -904,6 +946,7 @@ struct MarkAsSoldView: View {
     @State private var soldPriceText: String = ""
     @State private var soldDate: Date = Date()
     @State private var soldNotes: String = ""
+    @State private var showNegativePriceAlert = false
     
     var body: some View {
         NavigationStack {
@@ -930,12 +973,24 @@ struct MarkAsSoldView: View {
             }
             .navigationTitle("标记为已出")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("哎呀~", isPresented: $showNegativePriceAlert) {
+                Button("好的", role: .cancel) { }
+            } message: {
+                Text("卖出价格不能为负数哦 💰")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("确认") {
+                        // Validate sold price
+                        if !soldPriceText.isEmpty, let price = Double(soldPriceText), price < 0 {
+                            showNegativePriceAlert = true
+                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            return
+                        }
+                        
                         let price = soldPriceText.isEmpty ? nil : Double(soldPriceText)
                         let notes = soldNotes.isEmpty ? nil : soldNotes
                         wardrobeStore.markAsSoldById(id: item.id, soldPrice: price, soldDate: soldDate, soldNotes: notes)
@@ -1182,5 +1237,51 @@ struct CPWGoalProgressView: View {
                 )
             }
         }
+    }
+}
+
+// MARK: - Undo Toast View
+struct UndoToastView: View {
+    @Binding var showToast: Bool
+    let onUndo: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.white)
+                    .font(.system(size: 16))
+                Text("✅ 已记录")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+            }
+            
+            Spacer()
+            
+            Button(action: onUndo) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("撤销")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.white.opacity(0.2))
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.85))
+                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 5)
+        )
+        .padding(.horizontal, 20)
     }
 }
